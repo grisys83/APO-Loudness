@@ -7,10 +7,10 @@ Equalizer APO Loudness control using FIR filters from FIR-Filter-Maker <https://
 3. Open C:\Program Files\EqualizerAPO\config\config.txt with Notepad and add the following line at the end: Include: Loudness.txt
 4. Choose one of the loudness filter compressed files and extract it to C:\Program Files\EqualizerAPO\config.
 5. Create Loudness.txt in C:\Program Files\EqualizerAPO\config with the following content:
-
-'Preamp: -23 dB
-Convolution: 60.0-85.0_filter.wav'
-
+```
+Preamp: -23 dB
+Convolution: 60.0-85.0_filter.wav
+```
 6. Run C:\Program Files\ApoLoudness\ApoLoudness.exe
 
 ## Usage

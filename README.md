@@ -3,9 +3,9 @@ Equalizer APO Loudness control using FIR filters from FIR-Filter-Maker <https://
 
 ## Installation & Operation
 1. Install Equalizer APO.
-2. Extract the compressed file to C:\Program Files\ApoLoudness. (If you wish to remove a previous version, you can simply delete it.)
+2. Extract the compressed file to C:\Program Files\ApoLoudness.
 3. Open C:\Program Files\EqualizerAPO\config\config.txt with Notepad and add the following line at the end: Include: Loudness.txt
-4. Choose one of the loudness filter compressed files and extract it to C:\Program Files\EqualizerAPO\config.
+4. Copy .WAV files created by FIR-Filter-Maker-for-Equal-Loudness to C:\Program Files\EqualizerAPO\config.
 5. Create Loudness.txt in C:\Program Files\EqualizerAPO\config with the following content:
 ```
 Preamp: -23 dB
@@ -33,6 +33,6 @@ Right-clicking and scrolling the mouse wheel adjusts the content of loudness.txt
 Note: The Harman target is reportedly based on the free field target of 85dB.
 
 ### For More Accurate Usage (In Case of 85 Phon Target)
-1. Use a 1 kHz 0 dB sound source for this purpose. You can find an appropriate sound source here: 1 kHz 0 dB Test Tone.
+1. Use a 1 kHz 0 dB sound source for this purpose. You can find an appropriate sound source here: <https://www.youtube.com/watch?v=-GvBJNRqEEw>
 2. Set the configuration to "85.0-85.0" in the application.
 3. Adjust the amplifier's volume until a decibel meter reads 85.0 dB.

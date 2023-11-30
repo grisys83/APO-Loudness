@@ -23,7 +23,7 @@ With the mouse cursor over the app's window, scroll the mouse wheel while holdin
 
 Holding the right mouse button and clicking the left button cycles through target loudness levels (back number) from 80.0 to 90.0. (We recommend using 85, but feel free to choose according to your preference.)
 
-Double-clicking the left mouse button resets to 60.0/80.0 dB.
+Double-clicking the left mouse button resets to 60.0-80.0 dB.
 
 ## Principles
 

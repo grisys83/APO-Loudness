@@ -30,7 +30,7 @@ Double-clicking the left mouse button resets to 60.0/80.0 dB.
 ### Purpose of Hundreds of WAV Files by FIR-Filter-Maker
 These are FIR filters that adjust EQ based on the relative sound level differences between 80-90 phon and 60-90 phon equal-loudness contours.
 
-### Function of the Script File
+### Function of the app.
 Right-clicking and scrolling the mouse wheel adjusts the content of loudness.txt according to the volume. The front number represents the current loudness curve (volume), and the back number represents the target loudness curve (tone balance).
 
 Note: The Harman target is reportedly based on the free field target of 85dB.

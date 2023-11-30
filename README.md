@@ -19,7 +19,7 @@ Convolution: 60.0-85.0_filter.wav
 ## Usage
 The current volume is displayed in a small always-on-top window on the screen.
 
-With the mouse cursor over this window, scroll the mouse wheel while holding the right button to adjust the volume (front number) in 0.1dB increments. The corresponding FIR filter will be applied based on the volume.
+With the mouse cursor over the app's window, scroll the mouse wheel while holding the right button to adjust the volume (front number) in 0.1dB increments. The corresponding FIR filter will be applied based on the volume.
 
 Holding the right mouse button and clicking the left button cycles through target loudness levels (back number) from 80.0 to 90.0. (We recommend using 85, but feel free to choose according to your preference.)
 

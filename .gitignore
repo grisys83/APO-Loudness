@@ -1,0 +1,117 @@
+<<<<<<< HEAD
+# C++ objects and libs
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.so.*
+*.dll
+*.dylib
+
+# Qt-es
+object_script.*.Release
+object_script.*.Debug
+*_plugin_import.cpp
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+Makefile*
+*build-*
+*.qm
+*.prl
+
+# Qt unit tests
+target_wrapper.*
+
+# QtCreator
+*.autosave
+
+# QtCreator Qml
+*.qmlproject.user
+*.qmlproject.user.*
+
+# QtCreator CMake
+CMakeLists.txt.user*
+
+# QtCreator 4.8< compilation database
+compile_commands.json
+
+# QtCreator local machine specific files for imported projects
+*creator.user*
+
+*_qmlcache.qrc
+=======
+# Build directories
+/build/
+/debug/
+/release/
+debug/
+release/
+
+# User-specific files
+*.pro.user
+*.user
+
+# Compiled Object files
+*.o
+*.obj
+*.moc
+moc_*.cpp
+qrc_*.cpp
+
+# Precompiled Headers
+*.pch
+*.gch
+
+# Executables
+*.exe
+*.app
+*.dll
+*.so
+*.dylib
+
+# Qt Creator files
+*.creator
+*.autosave
+
+# Qt specific files
+*.qbs.user
+
+# Makefiles (unless you want to commit them)
+Makefile*
+makefile*
+
+# Generated UI files (if you prefer to generate them during build)
+ui_*.h
+
+# Testing output
+*.gcno
+*.gcda
+*.gcov
+
+# Translation files (usually generated, source .ts files are kept)
+*.qm
+
+# Backup files
+*~
+*.bak
+
+# VS Code specific
+.vscode/
+
+# Qt VS Tools
+.vs/ 
+>>>>>>> 77fc216 (Update README.md, add .gitignore, and prepare for v0.2)

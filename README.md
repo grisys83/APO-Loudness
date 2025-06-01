@@ -110,6 +110,5 @@ GPLv3
 
 ## Developer Information
 
-Developer: grisys/gemini-2.5-pro-preview-05-06
-
-GitHub: [grisys83/APO-Loudness](https://github.com/grisys83/APO-Loudness)
+    * Developer: grisys/gemini-2.5-pro-preview-05-06
+    * GitHub: [grisys83/APO-Loudness](https://github.com/grisys83/APO-Loudness)

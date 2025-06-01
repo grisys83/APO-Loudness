@@ -33,8 +33,5 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-<<<<<<< HEAD
-RC_FILE = appicon.rc
 =======
 RESOURCES += appicon.qrc
->>>>>>> 77fc216 (Update README.md, add .gitignore, and prepare for v0.2)

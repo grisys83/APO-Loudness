@@ -4,7 +4,7 @@
 /release/
 debug/
 release/
-deploy/
+deployment/
 
 # User-specific files
 *.pro.user

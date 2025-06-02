@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 그라디언트 정의 -->
+    <linearGradient id="micGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#606060;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#303030;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="highlightGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0.1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 마이크 본체 -->
+  <rect x="22" y="6" width="20" height="32" rx="10" ry="10" fill="url(#micGradient)"/>
+  
+  <!-- 마이크 그릴 (점 패턴) -->
+  <circle cx="28" cy="14" r="1" fill="#808080"/>
+  <circle cx="32" cy="14" r="1" fill="#808080"/>
+  <circle cx="36" cy="14" r="1" fill="#808080"/>
+  
+  <circle cx="28" cy="18" r="1" fill="#808080"/>
+  <circle cx="32" cy="18" r="1" fill="#808080"/>
+  <circle cx="36" cy="18" r="1" fill="#808080"/>
+  
+  <circle cx="28" cy="22" r="1" fill="#808080"/>
+  <circle cx="32" cy="22" r="1" fill="#808080"/>
+  <circle cx="36" cy="22" r="1" fill="#808080"/>
+  
+  <circle cx="28" cy="26" r="1" fill="#808080"/>
+  <circle cx="32" cy="26" r="1" fill="#808080"/>
+  <circle cx="36" cy="26" r="1" fill="#808080"/>
+  
+  <circle cx="28" cy="30" r="1" fill="#808080"/>
+  <circle cx="32" cy="30" r="1" fill="#808080"/>
+  <circle cx="36" cy="30" r="1" fill="#808080"/>
+  
+  <!-- 마이크 홀더 -->
+  <path d="M 18 26 C 18 38 18 40 32 40 C 46 40 46 38 46 26" 
+        stroke="#404040" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- 스탠드 -->
+  <line x1="32" y1="40" x2="32" y2="52" stroke="#404040" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- 베이스 -->
+  <rect x="24" y="52" width="16" height="4" rx="2" fill="#404040"/>
+  
+  <!-- 하이라이트 -->
+  <rect x="24" y="8" width="8" height="28" rx="4" fill="url(#highlightGradient)" opacity="0.6"/>
+</svg>

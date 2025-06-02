@@ -20,10 +20,12 @@ TEMPLATE = app
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    optimaloffsetcalculator.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    optimaloffsetcalculator.h
 
 # FORMS += \
 #     mainwindow.ui

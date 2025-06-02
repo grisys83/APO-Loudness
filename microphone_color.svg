@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 메탈릭 그라디언트 -->
+    <linearGradient id="metalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e0e0e0;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#b0b0b0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#808080;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 다크 그라디언트 -->
+    <linearGradient id="darkGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#505050;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#202020;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 하이라이트 -->
+    <radialGradient id="highlight">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
+    </radialGradient>
+    
+    <!-- 그림자 필터 -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="2" dy="2" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.3"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 배경 원 -->
+  <circle cx="128" cy="128" r="120" fill="#f0f0f0" stroke="#d0d0d0" stroke-width="2"/>
+  
+  <!-- 마이크 본체 -->
+  <rect x="88" y="32" width="80" height="112" rx="40" ry="40" 
+        fill="url(#metalGradient)" filter="url(#shadow)"/>
+  
+  <!-- 마이크 그릴 메쉬 -->
+  <rect x="96" y="40" width="64" height="96" rx="32" ry="32" 
+        fill="url(#darkGradient)" opacity="0.8"/>
+  
+  <!-- 그릴 패턴 -->
+  <g opacity="0.6">
+    <!-- 가로선 -->
+    <line x1="104" y1="56" x2="152" y2="56" stroke="#606060" stroke-width="2"/>
+    <line x1="104" y1="72" x2="152" y2="72" stroke="#606060" stroke-width="2"/>
+    <line x1="104" y1="88" x2="152" y2="88" stroke="#606060" stroke-width="2"/>
+    <line x1="104" y1="104" x2="152" y2="104" stroke="#606060" stroke-width="2"/>
+    <line x1="104" y1="120" x2="152" y2="120" stroke="#606060" stroke-width="2"/>
+    
+    <!-- 세로선 -->
+    <line x1="120" y1="48" x2="120" y2="128" stroke="#606060" stroke-width="1"/>
+    <line x1="136" y1="48" x2="136" y2="128" stroke="#606060" stroke-width="1"/>
+  </g>
+  
+  <!-- 마이크 홀더 (U자) -->
+  <path d="M 64 96 C 64 160 64 168 128 168 C 192 168 192 160 192 96" 
+        stroke="#404040" stroke-width="12" fill="none" stroke-linecap="round"
+        filter="url(#shadow)"/>
+  
+  <!-- 스탠드 -->
+  <rect x="120" y="168" width="16" height="48" rx="8" fill="#404040"/>
+  
+  <!-- 베이스 -->
+  <ellipse cx="128" cy="220" rx="40" ry="12" fill="#303030"/>
+  <ellipse cx="128" cy="216" rx="40" ry="12" fill="#404040"/>
+  
+  <!-- 하이라이트 효과 -->
+  <ellipse cx="110" cy="64" rx="20" ry="40" fill="url(#highlight)"/>
+  
+  <!-- 전원 표시 LED -->
+  <circle cx="128" cy="152" r="4" fill="#00ff00" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite"/>
+  </circle>
+</svg>

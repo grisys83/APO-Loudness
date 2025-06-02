@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- 마이크 본체 -->
+  <rect x="24" y="8" width="16" height="28" rx="8" ry="8" fill="#4a4a4a" stroke="#2c2c2c" stroke-width="2"/>
+  
+  <!-- 마이크 그릴 라인들 -->
+  <line x1="28" y1="14" x2="36" y2="14" stroke="#6a6a6a" stroke-width="1"/>
+  <line x1="28" y1="18" x2="36" y2="18" stroke="#6a6a6a" stroke-width="1"/>
+  <line x1="28" y1="22" x2="36" y2="22" stroke="#6a6a6a" stroke-width="1"/>
+  <line x1="28" y1="26" x2="36" y2="26" stroke="#6a6a6a" stroke-width="1"/>
+  <line x1="28" y1="30" x2="36" y2="30" stroke="#6a6a6a" stroke-width="1"/>
+  
+  <!-- 마이크 스탠드 -->
+  <path d="M 32 36 L 32 48" stroke="#2c2c2c" stroke-width="3" fill="none"/>
+  
+  <!-- 마이크 베이스 -->
+  <ellipse cx="32" cy="50" rx="10" ry="3" fill="#2c2c2c"/>
+  
+  <!-- 마이크 홀더 (U자 모양) -->
+  <path d="M 16 24 C 16 40 16 40 32 40 C 48 40 48 40 48 24" 
+        stroke="#2c2c2c" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- 하이라이트 효과 -->
+  <ellipse cx="30" cy="16" rx="3" ry="6" fill="#8a8a8a" opacity="0.5"/>
+</svg>

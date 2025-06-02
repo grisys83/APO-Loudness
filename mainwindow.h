@@ -3,59 +3,93 @@
 
 #include <QMainWindow>
 #include <QLabel>
-#include <QVector>
-#include <QMap>
-#include <QPoint>
 #include <QMenu>
 #include <QAction>
+#include <QWheelEvent>
+#include <QMouseEvent>
+#include <QContextMenuEvent>
+#include <QVector>
+#include <QPoint>
+#include <QTimer>
+#include "optimaloffsetcalculator.h"
 
-// QMouseEvent, QWheelEvent, QContextMenuEvent 헤더 추가
-QT_BEGIN_NAMESPACE
-class QMouseEvent;
-class QWheelEvent;
-class QContextMenuEvent;
-QT_END_NAMESPACE
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow
+{
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
 protected:
-    // 이벤트 핸들러 프로토타입 추가
     void wheelEvent(QWheelEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+    bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
 private slots:
     void toggleAlwaysOnTop();
+    void toggleAutoOffset();
+    void toggleCalibrationMode();
     void showInfo();
     void exitApplication();
+    void checkGlobalMouseState();
 
 private:
+    void createContextMenu();
     void updateConfig();
     void readConfig();
     double getRecommendedPreamp(double targetPhon, double referencePhon);
-    void createContextMenu();
+    double findClosestTargetToRealSPL(double currentRealSPL);
+    void handleGlobalWheel(int delta);
+    void installGlobalHook();
+    void uninstallGlobalHook();
 
+    // UI 컴포넌트
     QLabel *label;
+
+    // 메뉴 관련
     QMenu *contextMenu;
     QAction *alwaysOnTopAction;
+    QAction *autoOffsetAction;
+    QAction *calibrationModeAction;
     QAction *infoAction;
     QAction *exitAction;
 
-    QVector<double> targetLoudness; // Reference Phon 목록
-    int loudnessIndex;              // 현재 선택된 Reference Phon의 인덱스
-    double targetPhonValue;         // 현재 선택된 Target Phon 값
-    double preampUserOffset;        // 사용자가 권장 프리앰프 값에서 조정한 오프셋
-    bool leftMouseButtonPressed;    // 좌클릭 버튼 눌림 상태
-    QPoint dragPosition;            // 창 드래그 시작 위치
-    bool isAlwaysOnTop;             // Always on top 상태
+    // 상태 변수들
+    QVector<double> targetLoudness;
+    int loudnessIndex;
+    double targetPhonValue;
+    double preampUserOffset;
+
+    // 마우스 드래그 관련
+    bool leftMouseButtonPressed;
+    QPoint dragPosition;
+
+    // 옵션 플래그들
+    bool isAlwaysOnTop;
+    bool isAutoOffset;
+    bool isCalibrationMode;
+    
+    // Optimal Offset Calculator
+    OptimalOffsetCalculator optimalCalculator;
+    
+    // 글로벌 마우스 후킹
+    QTimer *globalMouseTimer;
+    bool globalRightMousePressed;
+    
+#ifdef Q_OS_WIN
+    static HHOOK mouseHook;
+    static MainWindow* instance;
+    static LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam);
+#endif
 };
 
 #endif // MAINWINDOW_H

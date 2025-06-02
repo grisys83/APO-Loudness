@@ -1,0 +1,72 @@
+ApoLoudness Manual Deployment Guide
+===================================
+
+If the automatic deployment script doesn't work, follow these manual steps:
+
+1. Required Files from Build Directory:
+   - ApoLoudness.exe
+   - ApoLoudnessCalibration.exe
+   - calibration.ini
+
+2. Required Qt6 DLLs (from D:\Qt\6.9.0\mingw_64\bin):
+   Core Libraries:
+   - Qt6Core.dll
+   - Qt6Gui.dll
+   - Qt6Widgets.dll
+   
+   Audio/Multimedia (for calibration tool):
+   - Qt6Multimedia.dll
+   - Qt6Network.dll
+   
+3. Required Qt6 Plugins:
+   platforms\ (folder)
+   - qwindows.dll
+   
+   styles\ (folder)
+   - qwindowsvistastyle.dll
+   
+   imageformats\ (folder)
+   - qico.dll
+   - qsvg.dll (if using SVG icons)
+   
+   multimedia\ (folder)
+   - windowsmediaplugin.dll
+   - ffmpegmediaplugin.dll (if available)
+
+4. Required MinGW Runtime DLLs (from C:\Qt\Tools\mingw1310_64\bin):
+   - libgcc_s_seh-1.dll
+   - libstdc++-6.dll
+   - libwinpthread-1.dll
+
+5. Directory Structure:
+   ApoLoudness\
+   ├── ApoLoudness.exe
+   ├── ApoLoudnessCalibration.exe
+   ├── calibration.ini
+   ├── Qt6Core.dll
+   ├── Qt6Gui.dll
+   ├── Qt6Widgets.dll
+   ├── Qt6Multimedia.dll
+   ├── Qt6Network.dll
+   ├── libgcc_s_seh-1.dll
+   ├── libstdc++-6.dll
+   ├── libwinpthread-1.dll
+   ├── platforms\
+   │   └── qwindows.dll
+   ├── styles\
+   │   └── qwindowsvistastyle.dll
+   ├── imageformats\
+   │   ├── qico.dll
+   │   └── qsvg.dll
+   └── multimedia\
+       └── windowsmediaplugin.dll
+
+6. Testing:
+   - Run ApoLoudness.exe on a clean system without Qt installed
+   - Check for missing DLL errors
+   - Use Dependency Walker or Dependencies.exe to find missing libraries
+
+7. Optional: Create an installer using:
+   - NSIS (Nullsoft Scriptable Install System)
+   - Inno Setup
+   - WiX Toolset

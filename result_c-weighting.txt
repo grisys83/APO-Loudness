@@ -1,25 +1,21 @@
-#include "MainWindow.h"
-#include <QFont>
-#include <QFile>
-#include <QTextStream>
-#include <QStringList>
-#include <QString>
-#include <cmath>
-#include <QIcon>
-#include <QDebug>
-#include <QMap>
-#include <algorithm>
-#include <limits>
-#include <QMouseEvent>
-#include <QRegularExpression>
-#include <QMessageBox>
-#include <QApplication>
+Processing Reference Phon: 80.0...
+Processing Reference Phon: 81.0...
+Processing Reference Phon: 82.0...
+Processing Reference Phon: 83.0...
+Processing Reference Phon: 84.0...
+Processing Reference Phon: 85.0...
+Processing Reference Phon: 86.0...
+Processing Reference Phon: 87.0...
+Processing Reference Phon: 88.0...
+Processing Reference Phon: 89.0...
+Processing Reference Phon: 90.0...
 
-// --- Pre-calculated preamp values ---
-// Key1: Reference Phon, Key2: Target Phon, Value: Recommended Preamp
-// 이 맵은 모든 (Reference Phon, Target Phon [40.0-90.0]) 조합에 대한
-// 계산된 값으로 채워져야 합니다.
-const QMap<double, QMap<double, double>> recommendedPreampMap = {
+
+// --- Recommended Preamp Map ---
+// Based on: CALIBRATED_SPL_AT_REF80_TARGET80 = 80.0 dB SPL(C)
+//           USER_DESIRED_ACTUAL_SPL = 70.0 dB SPL(C)
+//           TARGET_TRUE_PEAK_HEADROOM = -1.0 dBTP
+std::map<double, std::map<double, double>> recommended_preamp_map = {
     {80.0, { // For Reference Phon 80.0
         {40.0, -26.14}, {40.1, -26.09}, {40.2, -26.05}, {40.3, -26.01}, {40.4, -25.96},
         {40.5, -25.92}, {40.6, -25.88}, {40.7, -25.83}, {40.8, -25.79}, {40.9, -25.75},
@@ -122,7 +118,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -6.99}, {89.1, -6.96}, {89.2, -6.92}, {89.3, -6.89}, {89.4, -6.86},
         {89.5, -6.83}, {89.6, -6.80}, {89.7, -6.77}, {89.8, -6.74}, {89.9, -6.71},
         {90.0, -6.68},
-    }},
+    }}},
     {81.0, { // For Reference Phon 81.0
         {40.0, -26.59}, {40.1, -26.55}, {40.2, -26.51}, {40.3, -26.46}, {40.4, -26.42},
         {40.5, -26.38}, {40.6, -26.33}, {40.7, -26.29}, {40.8, -26.25}, {40.9, -26.20},
@@ -225,7 +221,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -7.30}, {89.1, -7.27}, {89.2, -7.24}, {89.3, -7.20}, {89.4, -7.17},
         {89.5, -7.14}, {89.6, -7.11}, {89.7, -7.08}, {89.8, -7.05}, {89.9, -7.02},
         {90.0, -6.99},
-    }},
+    }}},
     {82.0, { // For Reference Phon 82.0
         {40.0, -27.05}, {40.1, -27.01}, {40.2, -26.96}, {40.3, -26.92}, {40.4, -26.88},
         {40.5, -26.83}, {40.6, -26.79}, {40.7, -26.75}, {40.8, -26.70}, {40.9, -26.66},
@@ -328,7 +324,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -7.62}, {89.1, -7.59}, {89.2, -7.55}, {89.3, -7.52}, {89.4, -7.49},
         {89.5, -7.46}, {89.6, -7.43}, {89.7, -7.39}, {89.8, -7.36}, {89.9, -7.33},
         {90.0, -7.30},
-    }},
+    }}},
     {83.0, { // For Reference Phon 83.0
         {40.0, -27.51}, {40.1, -27.46}, {40.2, -27.42}, {40.3, -27.38}, {40.4, -27.33},
         {40.5, -27.29}, {40.6, -27.25}, {40.7, -27.20}, {40.8, -27.16}, {40.9, -27.12},
@@ -431,7 +427,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -7.94}, {89.1, -7.91}, {89.2, -7.88}, {89.3, -7.84}, {89.4, -7.81},
         {89.5, -7.78}, {89.6, -7.75}, {89.7, -7.71}, {89.8, -7.68}, {89.9, -7.65},
         {90.0, -7.62},
-    }},
+    }}},
     {84.0, { // For Reference Phon 84.0
         {40.0, -27.97}, {40.1, -27.92}, {40.2, -27.88}, {40.3, -27.84}, {40.4, -27.79},
         {40.5, -27.75}, {40.6, -27.70}, {40.7, -27.66}, {40.8, -27.62}, {40.9, -27.57},
@@ -534,7 +530,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -8.27}, {89.1, -8.24}, {89.2, -8.21}, {89.3, -8.17}, {89.4, -8.14},
         {89.5, -8.11}, {89.6, -8.07}, {89.7, -8.04}, {89.8, -8.01}, {89.9, -7.98},
         {90.0, -7.94},
-    }},
+    }}},
     {85.0, { // For Reference Phon 85.0
         {40.0, -28.43}, {40.1, -28.38}, {40.2, -28.34}, {40.3, -28.30}, {40.4, -28.25},
         {40.5, -28.21}, {40.6, -28.16}, {40.7, -28.12}, {40.8, -28.08}, {40.9, -28.03},
@@ -637,7 +633,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -8.61}, {89.1, -8.57}, {89.2, -8.54}, {89.3, -8.51}, {89.4, -8.47},
         {89.5, -8.44}, {89.6, -8.41}, {89.7, -8.37}, {89.8, -8.34}, {89.9, -8.31},
         {90.0, -8.27},
-    }},
+    }}},
     {86.0, { // For Reference Phon 86.0
         {40.0, -28.89}, {40.1, -28.84}, {40.2, -28.80}, {40.3, -28.76}, {40.4, -28.71},
         {40.5, -28.67}, {40.6, -28.62}, {40.7, -28.58}, {40.8, -28.54}, {40.9, -28.49},
@@ -740,7 +736,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -8.95}, {89.1, -8.91}, {89.2, -8.88}, {89.3, -8.85}, {89.4, -8.81},
         {89.5, -8.78}, {89.6, -8.74}, {89.7, -8.71}, {89.8, -8.68}, {89.9, -8.64},
         {90.0, -8.61},
-    }},
+    }}},
     {87.0, { // For Reference Phon 87.0
         {40.0, -29.35}, {40.1, -29.31}, {40.2, -29.26}, {40.3, -29.22}, {40.4, -29.17},
         {40.5, -29.13}, {40.6, -29.09}, {40.7, -29.04}, {40.8, -29.00}, {40.9, -28.95},
@@ -843,7 +839,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -9.29}, {89.1, -9.26}, {89.2, -9.22}, {89.3, -9.19}, {89.4, -9.16},
         {89.5, -9.12}, {89.6, -9.09}, {89.7, -9.05}, {89.8, -9.02}, {89.9, -8.98},
         {90.0, -8.95},
-    }},
+    }}},
     {88.0, { // For Reference Phon 88.0
         {40.0, -29.81}, {40.1, -29.77}, {40.2, -29.72}, {40.3, -29.68}, {40.4, -29.64},
         {40.5, -29.59}, {40.6, -29.55}, {40.7, -29.50}, {40.8, -29.46}, {40.9, -29.41},
@@ -946,7 +942,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -9.64}, {89.1, -9.61}, {89.2, -9.57}, {89.3, -9.54}, {89.4, -9.50},
         {89.5, -9.47}, {89.6, -9.43}, {89.7, -9.40}, {89.8, -9.36}, {89.9, -9.33},
         {90.0, -9.29},
-    }},
+    }}},
     {89.0, { // For Reference Phon 89.0
         {40.0, -30.28}, {40.1, -30.23}, {40.2, -30.19}, {40.3, -30.14}, {40.4, -30.10},
         {40.5, -30.05}, {40.6, -30.01}, {40.7, -29.97}, {40.8, -29.92}, {40.9, -29.88},
@@ -1049,7 +1045,7 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -10.00}, {89.1, -9.96}, {89.2, -9.93}, {89.3, -9.89}, {89.4, -9.86},
         {89.5, -9.82}, {89.6, -9.79}, {89.7, -9.75}, {89.8, -9.72}, {89.9, -9.68},
         {90.0, -9.64},
-    }},
+    }}},
     {90.0, { // For Reference Phon 90.0
         {40.0, -30.74}, {40.1, -30.70}, {40.2, -30.65}, {40.3, -30.61}, {40.4, -30.56},
         {40.5, -30.52}, {40.6, -30.47}, {40.7, -30.43}, {40.8, -30.39}, {40.9, -30.34},
@@ -1152,351 +1148,5 @@ const QMap<double, QMap<double, double>> recommendedPreampMap = {
         {89.0, -10.36}, {89.1, -10.32}, {89.2, -10.29}, {89.3, -10.25}, {89.4, -10.22},
         {89.5, -10.18}, {89.6, -10.14}, {89.7, -10.11}, {89.8, -10.07}, {89.9, -10.04},
         {90.0, -10.00},
-    }},
+    }}},
 };
-
-// --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-
-// 기본값 정의
-const double DEFAULT_REFERENCE_PHON = 80.0;
-const double DEFAULT_TARGET_PHON = 60.0;
-const double FALLBACK_PREAMP = -23.0; // 맵에 값이 없을 경우 사용할 가장 안전한 값
-const double TARGET_PHON_MIN = 40.0;
-const double TARGET_PHON_MAX = 80.0;
-
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent),
-      loudnessIndex(0),
-      targetPhonValue(DEFAULT_TARGET_PHON),
-      preampUserOffset(0.0),
-      leftMouseButtonPressed(false),
-      isAlwaysOnTop(true)
-{
-    setWindowTitle("ApoLoudness");
-    setFixedSize(200, 50);
-    setWindowFlags(Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
-    setWindowIcon(QIcon(":/appicon.ico"));
-
-    label = new QLabel(this);
-    label->setGeometry(0, 0, 200, 50);
-    label->setFont(QFont("Arial", 18));
-    label->setStyleSheet("QLabel { color: yellow; background-color: black; border-radius: 5px; }");
-    label->setAlignment(Qt::AlignCenter);
-
-    targetLoudness = {80.0, 81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0};
-
-    auto it_ref_default = std::find(targetLoudness.begin(), targetLoudness.end(), DEFAULT_REFERENCE_PHON);
-    if (it_ref_default != targetLoudness.end()) {
-        loudnessIndex = std::distance(targetLoudness.begin(), it_ref_default);
-    }
-
-    createContextMenu();
-    readConfig();
-    updateConfig();
-}
-
-MainWindow::~MainWindow() {
-    // Qt가 자식 위젯을 자동으로 관리하므로 label을 명시적으로 delete할 필요는 없습니다.
-}
-
-void MainWindow::createContextMenu() {
-    contextMenu = new QMenu(this);
-    
-    alwaysOnTopAction = new QAction("Always on Top", this);
-    alwaysOnTopAction->setCheckable(true);
-    alwaysOnTopAction->setChecked(isAlwaysOnTop);
-    connect(alwaysOnTopAction, &QAction::triggered, this, &MainWindow::toggleAlwaysOnTop);
-    
-    infoAction = new QAction("Info", this);
-    connect(infoAction, &QAction::triggered, this, &MainWindow::showInfo);
-    
-    exitAction = new QAction("Exit", this);
-    connect(exitAction, &QAction::triggered, this, &MainWindow::exitApplication);
-    
-    contextMenu->addAction(alwaysOnTopAction);
-    contextMenu->addSeparator();
-    contextMenu->addAction(infoAction);
-    contextMenu->addSeparator();
-    contextMenu->addAction(exitAction);
-}
-
-void MainWindow::toggleAlwaysOnTop() {
-    isAlwaysOnTop = !isAlwaysOnTop;
-    alwaysOnTopAction->setChecked(isAlwaysOnTop);
-    
-    if (isAlwaysOnTop) {
-        setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
-    } else {
-        setWindowFlags(windowFlags() & ~Qt::WindowStaysOnTopHint);
-    }
-    show(); // 윈도우 플래그 변경 후 다시 표시
-}
-
-void MainWindow::showInfo() {
-    QString info = "ApoLoudness v0.3\n\n"
-                   "Controls:\n"
-                   "- Mouse Wheel: Target Phon (40.0-90.0dB)\n"
-                   "- Shift + Wheel: Preamp Offset (+/-5.0dB)\n"
-                   "- Ctrl + Wheel: Reference Phon (80.0-90.0dB)\n"
-                   "- Right Click: Context Menu\n"
-                   "- Double Click: Reset to Default\n\n"
-                   "Current Settings:\n"
-                   "Target: " + QString::number(targetPhonValue, 'f', 1) + " dB\n"
-                   "Reference: " + QString::number(targetLoudness[loudnessIndex], 'f', 1) + " dB\n"
-                   "Preamp Offset: " + QString::number(preampUserOffset, 'f', 1) + " dB";
-    
-    QMessageBox::information(this, "ApoLoudness Info", info);
-}
-
-void MainWindow::exitApplication() {
-    QApplication::quit();
-}
-
-double MainWindow::getRecommendedPreamp(double targetPhon, double referencePhon) {
-    double refKey = qRound(referencePhon * 10) / 10.0;
-    double targetKey = qRound(targetPhon * 10) / 10.0;
-
-    if (recommendedPreampMap.contains(refKey)) {
-        const QMap<double, double>& targetMap = recommendedPreampMap.value(refKey);
-        if (targetMap.contains(targetKey)) {
-            return targetMap.value(targetKey);
-        } else {
-            // targetKey에 대한 값이 없을 경우, 가장 가까운 낮은 targetKey의 값을 찾아 반환
-            auto it = targetMap.lowerBound(targetKey);
-            if (it != targetMap.begin() && (it == targetMap.end() || it.key() != targetKey) ) {
-                 --it; // 이전 키 값 사용
-                 if (it.key() >= TARGET_PHON_MIN) return it.value();
-            } else if (it != targetMap.end() && it.key() == targetKey) {
-                return it.value();
-            }
-            qDebug() << "Warning: No exact or lower bound Target Phon" << targetKey << "for Reference Phon" << refKey << "in map. Using fallback.";
-        }
-    } else {
-        qDebug() << "Warning: No data for Reference Phon" << refKey << "in map. Using fallback.";
-    }
-    return FALLBACK_PREAMP;
-}
-
-void MainWindow::updateConfig() {
-    double currentReferencePhon = targetLoudness[loudnessIndex];
-
-    targetPhonValue = std::max(TARGET_PHON_MIN, std::min(targetPhonValue, TARGET_PHON_MAX));
-    targetPhonValue = std::min(targetPhonValue, currentReferencePhon); // Target Phon은 Reference Phon을 넘지 않음
-    targetPhonValue = qRound(targetPhonValue * 10) / 10.0;
-
-    double recommendedPreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
-    double finalPreampValue = recommendedPreamp + preampUserOffset;
-
-    finalPreampValue = std::max(-40.0, std::min(finalPreampValue, 0.0)); // 안전 범위
-    finalPreampValue = qRound(finalPreampValue * 10) / 10.0;
-
-    label->setText(QString::number(targetPhonValue, 'f', 1) + "/" + QString::number(currentReferencePhon, 'f', 1) + " dB");
-    label->setToolTip("Target / Reference Phon\n"
-                      "Preamp: " + QString::number(finalPreampValue, 'f', 1) + " dB\n"
-                      "(Recommended: " + QString::number(recommendedPreamp, 'f',1) + " dB, "
-                      "User Offset: " + QString::number(preampUserOffset, 'f', 1) + " dB)\n\n"
-                      "Controls:\n"
-                      "- Wheel: Target Phon\n"
-                      "- Shift+Wheel: Preamp Offset\n"
-                      "- Ctrl+Wheel: Reference Phon\n"
-                      "- Right Click: Context Menu\n"
-                      "- Double Click: Reset");
-
-    QFile configFile("C:/Program Files/EqualizerAPO/config/Loudness.txt");
-    if (!configFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
-        qDebug() << "Error: Could not open Loudness.txt for writing.";
-        return;
-    }
-    QTextStream out(&configFile);
-
-    out << "Preamp: " << QString::number(finalPreampValue, 'f', 1) << " dB\n";
-    QString convFile = QString::number(targetPhonValue, 'f', 1) + "-" + QString::number(currentReferencePhon, 'f', 1) + "_filter.wav";
-    out << "Convolution: Filters/" << convFile;
-
-    configFile.close();
-}
-
-void MainWindow::wheelEvent(QWheelEvent *event) {
-    const double phonScrollDelta = 0.1;
-    const double preampScrollDelta = 0.1;
-
-    if (event->modifiers() == Qt::NoModifier) { 
-        // 기본 휠: Target Phon 조정 (40.0~80.0dB, 0.1단위)
-        if (event->angleDelta().y() > 0) {
-            targetPhonValue += phonScrollDelta;
-        } else {
-            targetPhonValue -= phonScrollDelta;
-        }
-        preampUserOffset = 0.0; // Target Phon 변경 시 사용자 오프셋 리셋
-        
-    } else if (event->modifiers() == Qt::ShiftModifier) { 
-        // Shift + 휠: Preamp 미세조정 (-5.0~+5.0dB, 0.1단위)
-        if (event->angleDelta().y() > 0) {
-            preampUserOffset += preampScrollDelta;
-        } else {
-            preampUserOffset -= preampScrollDelta;
-        }
-        preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
-        preampUserOffset = std::max(-5.0, std::min(preampUserOffset, 5.0)); // 오프셋 범위 제한
-        
-    } else if (event->modifiers() == Qt::ControlModifier) { 
-        // Ctrl + 휠: Reference Phon 변경 (80.0~90.0dB, 1.0단위)
-        if (event->angleDelta().y() > 0) {
-            loudnessIndex = (loudnessIndex + 1) % targetLoudness.size();
-        } else {
-            loudnessIndex = (loudnessIndex - 1 + targetLoudness.size()) % targetLoudness.size();
-        }
-        // Reference Phon 변경 시 Target Phon이 새 Reference Phon을 넘지 않도록 조정
-        targetPhonValue = std::min(targetPhonValue, targetLoudness[loudnessIndex]);
-        preampUserOffset = 0.0; // Reference 변경 시 사용자 오프셋 리셋
-    }
-
-    updateConfig();
-    event->accept();
-}
-
-void MainWindow::mousePressEvent(QMouseEvent *event) {
-    if (event->button() == Qt::LeftButton) {
-        leftMouseButtonPressed = true;
-        // 창 드래그를 위한 시작점 저장 (FramelessWindowHint 사용 시)
-        if (windowFlags() & Qt::FramelessWindowHint) {
-             dragPosition = event->globalPosition().toPoint() - frameGeometry().topLeft();
-        }
-    } else if (event->button() == Qt::MiddleButton) {
-        // 중클릭: Preamp 오프셋 리셋
-        preampUserOffset = 0.0;
-        updateConfig();
-        event->accept();
-    }
-}
-
-void MainWindow::mouseMoveEvent(QMouseEvent *event) {
-    // 창 드래그 (FramelessWindowHint 사용 시)
-    if ((event->buttons() & Qt::LeftButton) && leftMouseButtonPressed && (windowFlags() & Qt::FramelessWindowHint)) {
-        move(event->globalPosition().toPoint() - dragPosition);
-        event->accept();
-    }
-}
-
-void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
-    if (event->button() == Qt::LeftButton) {
-        leftMouseButtonPressed = false;
-    }
-}
-
-void MainWindow::mouseDoubleClickEvent(QMouseEvent *event) {
-    if (event->button() == Qt::LeftButton) {
-        auto it_ref_default = std::find(targetLoudness.begin(), targetLoudness.end(), DEFAULT_REFERENCE_PHON);
-        if (it_ref_default != targetLoudness.end()) {
-            loudnessIndex = std::distance(targetLoudness.begin(), it_ref_default);
-        } else {
-            loudnessIndex = 0;
-        }
-        targetPhonValue = DEFAULT_TARGET_PHON;
-        preampUserOffset = 0.0;
-
-        qDebug() << "Double-click reset: Target " << targetPhonValue << ", Reference " << targetLoudness[loudnessIndex];
-        updateConfig();
-        event->accept();
-    }
-}
-
-void MainWindow::contextMenuEvent(QContextMenuEvent *event) {
-    contextMenu->exec(event->globalPos());
-    event->accept();
-}
-
-void MainWindow::readConfig() {
-    QFile configFile("C:/Program Files/EqualizerAPO/config/Loudness.txt");
-
-    int initialLoudnessIndex = 0;
-    auto it_ref_default = std::find(targetLoudness.begin(), targetLoudness.end(), DEFAULT_REFERENCE_PHON);
-    if (it_ref_default != targetLoudness.end()) {
-        initialLoudnessIndex = std::distance(targetLoudness.begin(), it_ref_default);
-    }
-
-    if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Warning: Could not open Loudness.txt. Using default values.";
-        loudnessIndex = initialLoudnessIndex;
-        targetPhonValue = DEFAULT_TARGET_PHON;
-        preampUserOffset = 0.0;
-        return;
-    }
-
-    QTextStream in(&configFile);
-    QString preampLine = in.readLine();
-    QString convLine = in.readLine();
-    configFile.close();
-
-    bool preampOk = false;
-    double loadedPreampFromFile = FALLBACK_PREAMP;
-    if (!preampLine.isEmpty()) {
-        QStringList preampParts = preampLine.split(' ');
-        if (preampParts.size() >= 2) {
-            loadedPreampFromFile = preampParts[1].toDouble(&preampOk);
-        }
-    }
-
-    double convTargetPhonFromFile = -1;
-    double convReferencePhonFromFile = -1;
-
-    if (!convLine.isEmpty()) {
-        static QRegularExpression regex("Filters/([0-9]+\\.?[0-9]*)-([0-9]+\\.?[0-9]*)_filter\\.wav");
-        static QRegularExpression regex_old("([0-9]+\\.?[0-9]*)-([0-9]+\\.?[0-9]*)_filter\\.wav"); // 이전 형식 호환용
-
-        QRegularExpressionMatch match = regex.match(convLine);
-
-        if (match.hasMatch()) {
-            convTargetPhonFromFile = match.captured(1).toDouble();
-            convReferencePhonFromFile = match.captured(2).toDouble();
-        } else {
-            QRegularExpressionMatch match_old = regex_old.match(convLine);
-            if (match_old.hasMatch()) {
-                convTargetPhonFromFile = match_old.captured(1).toDouble();
-                convReferencePhonFromFile = match_old.captured(2).toDouble();
-            } else {
-                qDebug() << "Could not parse convolution filter line:" << convLine;
-            }
-        }
-    }
-
-    if (convReferencePhonFromFile != -1) {
-        double minDifference = std::numeric_limits<double>::max();
-        int foundIndex = -1;
-        for (int i = 0; i < targetLoudness.size(); ++i) {
-            double difference = std::abs(targetLoudness[i] - convReferencePhonFromFile);
-            if (difference < 0.05) {
-                foundIndex = i;
-                break;
-            }
-            if (difference < minDifference) { minDifference = difference; foundIndex = i; }
-        }
-        loudnessIndex = (foundIndex != -1) ? foundIndex : initialLoudnessIndex;
-        qDebug() << "Config: Reference Phon set to " << targetLoudness[loudnessIndex];
-    } else {
-        qDebug() << "Config: Could not get Reference Phon from file. Defaulting.";
-        loudnessIndex = initialLoudnessIndex;
-    }
-
-    if (convTargetPhonFromFile != -1) {
-        targetPhonValue = convTargetPhonFromFile;
-        targetPhonValue = std::max(TARGET_PHON_MIN, std::min(targetPhonValue, TARGET_PHON_MAX));
-        targetPhonValue = std::min(targetPhonValue, targetLoudness[loudnessIndex]);
-        targetPhonValue = qRound(targetPhonValue * 10) / 10.0;
-        qDebug() << "Config: Target Phon set to " << targetPhonValue;
-    } else {
-        qDebug() << "Config: Could not get Target Phon from file. Defaulting.";
-        targetPhonValue = DEFAULT_TARGET_PHON;
-    }
-
-    if (preampOk) {
-        double recommendedPreampForLoaded = getRecommendedPreamp(targetPhonValue, targetLoudness[loudnessIndex]);
-        preampUserOffset = loadedPreampFromFile - recommendedPreampForLoaded;
-        preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
-        preampUserOffset = std::max(-5.0, std::min(preampUserOffset, 5.0));
-        qDebug() << "Config: Preamp " << loadedPreampFromFile << ", RecPreamp " << recommendedPreampForLoaded << ", UserOffset " << preampUserOffset;
-    } else {
-        qDebug() << "Config: Invalid/missing preamp. Resetting user offset.";
-        preampUserOffset = 0.0;
-    }
-}

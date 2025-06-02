@@ -17,37 +17,34 @@ Human ears have different frequency sensitivities depending on volume. At quiet 
 
 ### Download Links
 
-- **Program + 48kHz filters**: [Download](https://github.com/grisys83/APO-Loudness/releases)
-- **44.1kHz filters**: [Download](https://github.com/grisys83/APO-Loudness/releases)
+- **Windows Installer**: [ApoLoudness_v0.3.1_Setup.exe](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.1/ApoLoudness_v0.3.1_Setup.exe)
+- Includes automatic sample rate detection (44.1kHz/48.0kHz)
 
 ### ⚠️ Important Legal Notice
 
-- By extracting the compressed file, you agree to the GPLv3 license
+- By installing this software, you agree to the GPLv3 license
 - All usage responsibility lies with the user
-- Archive password: `agree`
+- The installer requires Administrator privileges
 
 ### Installation Steps
 
-#### Step 1: Install Main Program
-```
-Extract APOLoudness_v0.3.1_portable.zip
-↓
-Copy to C:\Program Files\EqualizerAPO\config\ folder
-```
+#### Step 1: Install ApoLoudness
+1. Download and run `ApoLoudness_v0.3.1_Setup.exe`
+2. The installer will detect your audio device's sample rate
+3. Confirm or change the sample rate (44.1kHz or 48.0kHz)
+4. Installation path: `C:\Program Files\EqualizerAPO\config\ApoLoudness\`
 
-#### Step 2: Install Filter Files (44.1kHz users only)
-```
-44100Hz filter files
-↓
-Copy to C:\Program Files\EqualizerAPO\config\Filters\ folder (overwrite)
-```
+#### Step 2: Verify Installation
+The installer automatically:
+- Copies program files to EqualizerAPO config folder
+- Installs appropriate filter files (44.1kHz or 48.0kHz)
+- Updates EqualizerAPO's config.txt with `Include: ApoLoudness\ApoLoudness.txt`
+- Creates shortcuts in Start Menu and Desktop (optional)
 
-#### Step 3: Configure Equalizer APO
-In Equalizer APO configuration:
-```
-Include: Loudness.txt
-```
-Add (headphone EQ is optional)
+#### Step 3: First Run
+1. Launch ApoLoudness from Start Menu or Desktop shortcut
+2. Launch ApoLoudnessCalibration for initial setup
+3. Follow the calibration process below
 
 ## 🎯 Calibration (Required Once)
 

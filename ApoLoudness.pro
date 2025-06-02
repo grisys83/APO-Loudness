@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui widgets
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -15,6 +15,9 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
+TARGET = ApoLoudness
+TEMPLATE = app
+
 SOURCES += \
     main.cpp \
     mainwindow.cpp
@@ -22,15 +25,18 @@ SOURCES += \
 HEADERS += \
     mainwindow.h
 
-FORMS += \
-    mainwindow.ui
+# FORMS += \
+#     mainwindow.ui
 
 TRANSLATIONS += \
     ApoLoudness_en_US.ts
 
 # Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
+qnx: target.path = /tmp/${TARGET}/bin
+else: unix:!android: target.path = /opt/${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 RESOURCES += appicon.qrc
+
+# Windows 실행파일 아이콘 설정
+win32:RC_FILE = ApoLoudness.rc

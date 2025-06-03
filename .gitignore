@@ -1,9 +1,7 @@
 # Build directories
 /build/
 /debug/
-/release/
 debug/
-release/
 deployment/
 
 # User-specific files

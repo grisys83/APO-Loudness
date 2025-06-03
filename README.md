@@ -1,4 +1,4 @@
-# ApoLoudness User Manual v0.3.2
+# ApoLoudness User Manual v0.3.3
 
 ## 🎵 What is ApoLoudness?
 
@@ -17,7 +17,7 @@ Human ears have different frequency sensitivities depending on volume. At quiet 
 
 ### Download Links
 
-- **Windows Installer**: [ApoLoudness_v0.3.2_Setup.exe](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.2/ApoLoudness_v0.3.2_Setup.exe)
+- **Windows Installer**: [ApoLoudness_v0.3.3_Setup.exe](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.3/ApoLoudness_v0.3.3_Setup.exe)
 - Includes automatic sample rate detection (44.1kHz/48.0kHz)
 
 ### ⚠️ Important Legal Notice
@@ -29,7 +29,7 @@ Human ears have different frequency sensitivities depending on volume. At quiet 
 ### Installation Steps
 
 #### Step 1: Install ApoLoudness
-1. Download and run `ApoLoudness_v0.3.2_Setup.exe`
+1. Download and run `ApoLoudness_v0.3.3_Setup.exe`
 2. The installer will detect your audio device's sample rate
 3. Confirm or change the sample rate (44.1kHz or 48.0kHz)
 4. Installation path: `C:\Program Files\EqualizerAPO\config\ApoLoudness\`
@@ -279,6 +279,18 @@ Actively use Auto Offset mode to enjoy ApoLoudness's unique volume control exper
 ---
 
 ## Version History
+
+### v0.3.3 Changes:
+
+* **Fixed Convolution Path**: Now uses "../Filters/" for proper relative path
+* **Real SPL Calculation**: Fixed error when Target equals Reference
+* **Auto Offset Improvements**: Better wheel accumulator logic
+* **Mouse Hook**: Fixed interference with browser scrolling
+* **Debug Console**: Removed for cleaner operation
+* **Calibration Mode**: Now starts with Reference 80 (not 82)
+* **UI Improvements**: Reference Level Selection menu removed (use Alt+Wheel)
+* **Calibration Backup**: Previous measurements backed up with timestamp
+* **Code Cleanup**: Removed unused variables and improved efficiency
 
 ### v0.3.2 Changes:
 

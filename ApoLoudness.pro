@@ -25,7 +25,8 @@ SOURCES += \
 
 HEADERS += \
     mainwindow.h \
-    optimaloffsetcalculator.h
+    optimaloffsetcalculator.h \
+    preamp_data_v032.h
 
 # FORMS += \
 #     mainwindow.ui

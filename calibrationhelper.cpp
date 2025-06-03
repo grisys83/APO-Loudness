@@ -11,6 +11,7 @@
 #include <QGroupBox>
 #include <QMessageBox>
 #include <QDateTime>
+#include <QFile>
 #include <QAudioDevice>
 #include <QMediaDevices>
 #include <QtMath>
@@ -18,11 +19,13 @@
 
 CalibrationHelper::CalibrationHelper(QWidget *parent)
     : QMainWindow(parent)
+    , isAdvancedMode(false)
     , currentMeasurementIndex(0)
     , isCalibrating(false)
+    , currentReferencePhon(80.0)
 {
     setWindowTitle("ApoLoudness Calibration Helper");
-    setFixedSize(800, 600);
+    setFixedSize(800, 650);
     setWindowIcon(QIcon(":/microphone_color.svg"));
     
     settings = new QSettings("calibration.ini", QSettings::IniFormat, this);
@@ -32,8 +35,22 @@ CalibrationHelper::CalibrationHelper(QWidget *parent)
     loadCalibration();
     updateDeviceType();
     
-    // Initialize target phons for measurement - start from 80dB and go down
-    targetPhons = {80.0, 70.0, 60.0, 50.0, 40.0};
+    // Initialize target phons for measurement with 0.1dB precision
+    // Include more measurement points for better calibration accuracy
+    targetPhons.clear();
+    // From 80dB to 40dB in 5dB steps for primary measurements
+    for (double phon = 80.0; phon >= 40.0; phon -= 5.0) {
+        targetPhons.append(phon);
+    }
+    // Option to add more measurement points in advanced mode
+    if (isAdvancedMode) {
+        // Add intermediate 2.5dB steps for finer calibration
+        targetPhons.clear();
+        for (double phon = 80.0; phon >= 40.0; phon -= 2.5) {
+            targetPhons.append(phon);
+        }
+    }
+    referencePhons = {75.0, 76.0, 77.0, 78.0, 79.0, 80.0, 81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0};
 }
 
 CalibrationHelper::~CalibrationHelper()
@@ -56,6 +73,13 @@ void CalibrationHelper::setupUI()
     deviceTypeCombo->addItems({"Headphones", "Speakers"});
     connect(deviceTypeCombo, &QComboBox::currentTextChanged, this, &CalibrationHelper::updateDeviceType);
     setupLayout->addWidget(deviceTypeCombo);
+    
+    setupLayout->addSpacing(20);
+    advancedModeButton = new QPushButton("Advanced Mode", this);
+    advancedModeButton->setCheckable(true);
+    connect(advancedModeButton, &QPushButton::toggled, this, &CalibrationHelper::toggleAdvancedMode);
+    setupLayout->addWidget(advancedModeButton);
+    
     setupLayout->addStretch();
     
     mainLayout->addWidget(setupGroup);
@@ -105,6 +129,7 @@ void CalibrationHelper::setupUI()
     measuredSPLSpinBox->setRange(30.0, 120.0);
     measuredSPLSpinBox->setSuffix(" dB");
     measuredSPLSpinBox->setDecimals(1);
+    measuredSPLSpinBox->setSingleStep(0.1);  // Allow 0.1dB increments
     measuredSPLSpinBox->setValue(60.0);
     measuredSPLSpinBox->setEnabled(false);
     measurementLayout->addWidget(measuredSPLSpinBox);
@@ -241,27 +266,41 @@ void CalibrationHelper::updateHardwareGuide()
     QString deviceType = deviceTypeCombo->currentText().toLower();
     QString guide;
     
+    // General setup guide
+    guide = "=== ApoLoudness Calibration Setup ===\n\n";
+    
     if (deviceType == "headphones") {
-        guide = "Headphones Calibration Guide:\n\n";
-        guide += "⚠️ IMPORTANT: Start with hardware volume LOWER than your usual listening level!\n\n";
-        guide += "1. Set Windows Volume to 100% (0dB) - Standard for audiophile setups\n";
-        guide += "2. Set your amp/DAC volume LOWER than usual (safety first!)\n";
-        guide += "3. Pink noise will play at 0dB (full scale)\n";
-        guide += "4. First measurement: 80 dB target should read ~83 dB SPL\n";
-        guide += "5. Use smartphone SPL meter app (C-weighted, slow)\n";
-        guide += "6. Hold phone mic at ear cup position\n\n";
-        guide += "Safety: You can always increase volume if needed, but start low!";
+        guide += "📱 Headphones Calibration Guide:\n\n";
+        guide += "⚠️ SAFETY FIRST: Start with hardware volume LOWER than usual!\n\n";
+        guide += "Initial Setup:\n";
+        guide += "• Windows Volume: 100% (0dB)\n";
+        guide += "• Amp/DAC volume: Start LOW (you can increase later)\n";
+        guide += "• ApoLoudness: Enable Calibration Mode (right-click menu)\n\n";
+        guide += "Measurement Position:\n";
+        guide += "• Phone microphone inside ear cup\n";
+        guide += "• Keep consistent position between measurements\n";
     } else {
-        guide = "Speakers Calibration Guide:\n\n";
-        guide += "⚠️ IMPORTANT: Start with amplifier volume LOWER than your usual listening level!\n\n";
-        guide += "1. Set Windows Volume to 100% (0dB) - Standard for audiophile setups\n";
-        guide += "2. Set your amplifier volume LOWER than usual (safety first!)\n";
-        guide += "3. Pink noise will play at 0dB (full scale)\n";
-        guide += "4. First measurement: 80 dB target should read ~83 dB SPL\n";
-        guide += "5. Use smartphone SPL meter app (C-weighted, slow)\n";
-        guide += "6. Place phone at listening position (1m from speakers)\n\n";
-        guide += "Safety: You can always increase volume if needed, but start low!";
+        guide += "🔊 Speakers Calibration Guide:\n\n";
+        guide += "⚠️ SAFETY FIRST: Start with amplifier volume LOWER than usual!\n\n";
+        guide += "Initial Setup:\n";
+        guide += "• Windows Volume: 100% (0dB)\n";
+        guide += "• Amplifier volume: Start LOW (you can increase later)\n";
+        guide += "• ApoLoudness: Enable Calibration Mode (right-click menu)\n\n";
+        guide += "Measurement Position:\n";
+        guide += "• Phone at listening position (ear level)\n";
+        guide += "• 1 meter from speakers (typical nearfield)\n";
     }
+    
+    guide += "\nMeasurement App Settings:\n";
+    guide += "• Weighting: Z (preferred) or C\n";
+    guide += "• Response: Slow\n";
+    guide += "• Expected values: Target 80→83 SPL, 60→72 SPL, 40→59 SPL\n\n";
+    
+    guide += "📋 Calibration Modes:\n";
+    guide += "• Simple Mode: Reference 80 only (5 measurements)\n";
+    guide += "• Advanced Mode: Multiple references (comprehensive)\n\n";
+    
+    guide += "The system now uses (Reference, Target) pairs for more accurate Real SPL estimation!";
     
     instructionsText->setText(guide);
 }
@@ -398,9 +437,10 @@ void CalibrationHelper::recordMeasurement()
     
     measurements[targetPhon] = measuredSPL;
     
-    QString result = QString("Target: %1 Phon → Measured: %2 dB SPL\n")
-                     .arg(targetPhon)
-                     .arg(measuredSPL);
+    QString result = QString("Target: %1 Phon → Measured: %2 dB SPL (Δ: %3 dB)\n")
+                     .arg(targetPhon, 0, 'f', 1)
+                     .arg(measuredSPL, 0, 'f', 1)
+                     .arg(measuredSPL - targetPhon, 0, 'f', 1);
     resultsText->append(result);
     
     recordButton->setEnabled(false);
@@ -414,8 +454,15 @@ void CalibrationHelper::nextMeasurement()
     
     if (currentMeasurementIndex >= targetPhons.size()) {
         stopCalibration();
-        currentStepLabel->setText("Calibration complete!");
-        QMessageBox::information(this, "Complete", "Calibration completed successfully!");
+        currentStepLabel->setText("Calibration complete! Saving data...");
+        
+        // 자동으로 calibration 데이터 저장
+        saveCalibration();
+        
+        currentStepLabel->setText("Calibration complete and saved!");
+        
+        // 완료 메시지 (저장 성공 메시지는 saveCalibration에서 이미 표시됨)
+        // QMessageBox::information(this, "Complete", "Calibration completed successfully!");
     } else {
         recordButton->setEnabled(true);
         nextButton->setEnabled(false);
@@ -450,27 +497,58 @@ void CalibrationHelper::updateInstructions()
     
     double targetPhon = targetPhons[currentMeasurementIndex];
     
-    // Expected SPL values based on standard measurements
+    // Expected SPL values based on standard measurements (Reference 80)
     QMap<double, double> expectedSPL = {
-        {80.0, 83.0}, {70.0, 77.7}, {60.0, 71.8}, {50.0, 65.4}, {40.0, 59.3}
+        {90.0, 88.3}, {85.0, 85.7}, {80.0, 83.0}, {75.0, 80.4}, 
+        {70.0, 77.7}, {65.0, 74.8}, {60.0, 71.8}, {55.0, 68.6}, 
+        {50.0, 65.4}, {45.0, 62.3}, {40.0, 59.3}
     };
     
-    QString step = QString("Step %1 of %2: Measure %3 dB Target")
+    QString step = QString("Step %1 of %2: Measure Target %3 dB")
                    .arg(currentMeasurementIndex + 1)
                    .arg(targetPhons.size())
-                   .arg(targetPhon);
+                   .arg(targetPhon, 0, 'f', 1);
+    
+    if (isAdvancedMode) {
+        step += QString(" (Reference %1 dB)").arg(currentReferencePhon, 0, 'f', 1);
+    }
     currentStepLabel->setText(step);
     
-    QString instructions = QString("Current Target: %1 dB\n").arg(targetPhon);
-    instructions += QString("Expected SPL: ~%1 dB (±2 dB is normal)\n\n").arg(expectedSPL.value(targetPhon, targetPhon));
-    instructions += "1. Set ApoLoudness target to " + QString::number(targetPhon) + " dB\n";
-    instructions += "2. Click 'Play Test Tone' to start pink noise\n";
-    instructions += "3. Measure SPL with your phone app (C-weighted, slow)\n";
-    instructions += "4. Enter the measured value and click 'Record'\n";
-    instructions += "5. Click 'Next' to continue\n\n";
+    QString instructions;
+    
+    // Advanced mode instructions
+    if (isAdvancedMode) {
+        instructions = QString("Current Setup: Reference %1 dB, Target %2 dB\n")
+                      .arg(currentReferencePhon, 0, 'f', 1)
+                      .arg(targetPhon, 0, 'f', 1);
+        instructions += "ApoLoudness will use exact preamp map values (no offset) in Calibration Mode.\n\n";
+    } else {
+        instructions = QString("Current Target: %1 dB (Reference fixed at 80 dB)\n").arg(targetPhon, 0, 'f', 1);
+    }
+    
+    instructions += QString("Expected SPL: ~%1 dB (±2-3 dB variation is normal)\n\n").arg(expectedSPL.value(targetPhon, targetPhon), 0, 'f', 1);
+    
+    instructions += "Steps:\n";
+    instructions += "1. In ApoLoudness, ensure Calibration Mode is ON (right-click menu)\n";
+    
+    if (isAdvancedMode) {
+        instructions += QString("2. Use Alt+Wheel to set Reference to %1 dB\n").arg(currentReferencePhon, 0, 'f', 1);
+        instructions += QString("3. Use Wheel to set Target to %1 dB\n").arg(targetPhon, 0, 'f', 1);
+    } else {
+        if (targetPhon == 80.0) {
+            instructions += QString("2. Set ApoLoudness target and reference to 80.0 dB\n");
+        } else {
+            instructions += QString("2. Use mouse wheel to set Target to %1 dB (Reference stays at 80.0 dB)\n").arg(targetPhon, 0, 'f', 1);
+        }
+    }
+    
+    instructions += "4. Click 'Play Test Tone' to start pink noise\n";
+    instructions += "5. Measure SPL with your meter (Z-weighting preferred, C-weighting OK)\n";
+    instructions += "6. Enter the measured value and click 'Record'\n";
+    instructions += "7. Click 'Next' to continue\n\n";
     
     if (currentMeasurementIndex == 0) {
-        instructions += "Note: If the volume is too loud, stop and adjust your hardware volume down.";
+        instructions += "⚠️ Safety: If the volume is too loud, stop and reduce hardware volume!";
     }
     
     instructionsText->setText(instructions);
@@ -478,20 +556,67 @@ void CalibrationHelper::updateInstructions()
 
 void CalibrationHelper::saveCalibration()
 {
+    QString backupInfo;
+    
+    // 기존 calibration.ini 파일이 있으면 .bak으로 백업
+    QFile currentFile("calibration.ini");
+    if (currentFile.exists()) {
+        // 백업 파일명에 타임스탬프 추가
+        QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+        QString backupFileName = QString("calibration_%1.bak").arg(timestamp);
+        
+        // 기존 백업 파일이 있으면 삭제
+        QFile::remove(backupFileName);
+        
+        // 현재 파일을 백업
+        if (currentFile.copy(backupFileName)) {
+            backupInfo = QString("\n\nPrevious calibration backed up as:\n%1").arg(backupFileName);
+            // qDebug() << "Backup created:" << backupFileName;
+        } else {
+            // qDebug() << "Failed to create backup";
+        }
+    }
+    
     settings->beginGroup("General");
     settings->setValue("LastCalibration", QDateTime::currentDateTime().toString(Qt::ISODate));
     settings->setValue("DeviceType", deviceTypeCombo->currentText().toLower());
+    settings->setValue("CalibrationMode", isAdvancedMode ? "Advanced" : "Simple");
     settings->endGroup();
     
-    settings->beginGroup("CustomMeasurements");
+    // Legacy format for backward compatibility (Reference 80 only)
+    if (!isAdvancedMode || currentReferencePhon == 80.0) {
+        settings->beginGroup("CustomMeasurements");
+        for (auto it = measurements.begin(); it != measurements.end(); ++it) {
+            settings->setValue(QString::number(it.key()), it.value());
+        }
+        settings->endGroup();
+    }
+    
+    // New format: (Reference, Target) pairs
+    settings->beginGroup("RefTargetMeasurements");
     for (auto it = measurements.begin(); it != measurements.end(); ++it) {
-        settings->setValue(QString::number(it.key()), it.value());
+        QString key = QString("Ref_%1_Target_%2")
+                     .arg(currentReferencePhon, 0, 'f', 0)
+                     .arg(it.key(), 0, 'f', 0);
+        settings->setValue(key, it.value());
     }
     settings->endGroup();
     
     settings->sync();
     
-    QMessageBox::information(this, "Saved", "Calibration data saved successfully!");
+    // backupInfo는 이미 위에서 설정됨
+    
+    QString message = QString("Calibration completed and saved!\n\n"
+                             "Mode: %1\n"
+                             "Reference: %2 dB\n"
+                             "Measurements: %3 points%4\n\n"
+                             "You can now close this window and use ApoLoudness normally.")
+                     .arg(isAdvancedMode ? "Advanced" : "Simple")
+                     .arg(currentReferencePhon, 0, 'f', 0)
+                     .arg(measurements.size())
+                     .arg(backupInfo);
+    
+    QMessageBox::information(this, "Calibration Complete", message);
 }
 
 void CalibrationHelper::loadCalibration()
@@ -502,4 +627,24 @@ void CalibrationHelper::loadCalibration()
     settings->endGroup();
     
     updateHardwareGuide();
+}
+
+void CalibrationHelper::toggleAdvancedMode()
+{
+    isAdvancedMode = advancedModeButton->isChecked();
+    
+    if (isAdvancedMode) {
+        // Advanced mode - allow selecting different reference levels
+        updateInstructions();
+    } else {
+        // Simple mode - reference fixed at 80.0
+        currentReferencePhon = 80.0;
+    }
+    updateInstructions();
+}
+
+void CalibrationHelper::updateReferenceSelection()
+{
+    // This function is no longer used since reference selection UI was removed
+    // Reference is fixed at 80.0 for simple mode
 }

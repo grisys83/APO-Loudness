@@ -11,10 +11,12 @@ TEMPLATE = app
 
 SOURCES += \
     calibration_main.cpp \
-    calibrationhelper.cpp
+    calibrationhelper.cpp \
+    preampextrapolator.cpp
 
 HEADERS += \
-    calibrationhelper.h
+    calibrationhelper.h \
+    preampextrapolator.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/${TARGET}/bin

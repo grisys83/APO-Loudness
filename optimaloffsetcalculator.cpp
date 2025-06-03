@@ -27,26 +27,67 @@ double OptimalOffsetCalculator::calculateOffsetEffect(double basePreamp, double 
     return 0.0;
 }
 
+// Legacy function - assumes reference = 80
 double OptimalOffsetCalculator::calculateRealDbSpl(double targetPhon, double basePreamp, double offsetPreamp) {
-    // 1. 기본 실측값 찾기 (선형 보간)
+    return calculateRealDbSpl(targetPhon, 80.0, basePreamp, offsetPreamp);
+}
+
+// New function with reference parameter
+double OptimalOffsetCalculator::calculateRealDbSpl(double targetPhon, double referencePhon, double basePreamp, double offsetPreamp) {
+    // 1. 기본 실측값 찾기 - 먼저 (Reference, Target) 쌍으로 찾기
     double baseDbSpl = 59.3; // fallback
+    QPair<double, double> refTargetPair(referencePhon, targetPhon);
     
-    if (measuredTargetToDbSpl.contains(targetPhon)) {
+    // 새로운 방식: (Reference, Target) 쌍으로 찾기
+    if (measuredRefTargetToDbSpl.contains(refTargetPair)) {
+        baseDbSpl = measuredRefTargetToDbSpl.value(refTargetPair);
+    }
+    // Legacy 방식: Target만으로 찾기 (Reference=80 가정)
+    else if (referencePhon == 80.0 && measuredTargetToDbSpl.contains(targetPhon)) {
         baseDbSpl = measuredTargetToDbSpl.value(targetPhon);
     } else {
-        // 선형 보간
+        // 선형 보간 및 외삽
         QList<double> targets = measuredTargetToDbSpl.keys();
         std::sort(targets.begin(), targets.end());
         
-        for (int i = 0; i < targets.size() - 1; ++i) {
-            if (targetPhon >= targets[i] && targetPhon <= targets[i + 1]) {
-                double x1 = targets[i];
-                double x2 = targets[i + 1];
-                double y1 = measuredTargetToDbSpl.value(x1);
-                double y2 = measuredTargetToDbSpl.value(x2);
-                
-                baseDbSpl = y1 + (y2 - y1) * (targetPhon - x1) / (x2 - x1);
-                break;
+        if (!targets.isEmpty()) {
+            // Case 1: targetPhon is below the lowest measurement - extrapolate down
+            if (targetPhon < targets.first()) {
+                if (targets.size() >= 2) {
+                    double x1 = targets[0];
+                    double x2 = targets[1];
+                    double y1 = measuredTargetToDbSpl.value(x1);
+                    double y2 = measuredTargetToDbSpl.value(x2);
+                    baseDbSpl = y1 + (y2 - y1) * (targetPhon - x1) / (x2 - x1);
+                } else {
+                    baseDbSpl = measuredTargetToDbSpl.value(targets.first());
+                }
+            }
+            // Case 2: targetPhon is above the highest measurement - extrapolate up
+            else if (targetPhon > targets.last()) {
+                if (targets.size() >= 2) {
+                    double x1 = targets[targets.size() - 2];
+                    double x2 = targets[targets.size() - 1];
+                    double y1 = measuredTargetToDbSpl.value(x1);
+                    double y2 = measuredTargetToDbSpl.value(x2);
+                    baseDbSpl = y1 + (y2 - y1) * (targetPhon - x1) / (x2 - x1);
+                } else {
+                    baseDbSpl = measuredTargetToDbSpl.value(targets.last());
+                }
+            }
+            // Case 3: targetPhon is within the measurement range - interpolate
+            else {
+                for (int i = 0; i < targets.size() - 1; ++i) {
+                    if (targetPhon >= targets[i] && targetPhon <= targets[i + 1]) {
+                        double x1 = targets[i];
+                        double x2 = targets[i + 1];
+                        double y1 = measuredTargetToDbSpl.value(x1);
+                        double y2 = measuredTargetToDbSpl.value(x2);
+                        
+                        baseDbSpl = y1 + (y2 - y1) * (targetPhon - x1) / (x2 - x1);
+                        break;
+                    }
+                }
             }
         }
     }
@@ -62,8 +103,8 @@ double OptimalOffsetCalculator::findOptimalOffset(double targetPhon, double base
     double bestOffset = 0.0;
     double minError = 999.0;
     
-    // -20dB에서 +10dB까지 0.1dB 간격으로 탐색
-    for (double offset = -20.0; offset <= 10.0; offset += 0.1) {
+    // -20dB에서 0dB까지 0.1dB 간격으로 탐색 (양수 offset 방지)
+    for (double offset = -20.0; offset <= 0.0; offset += 0.1) {
         double finalPreamp = basePreamp + offset;
         double realDbSpl = calculateRealDbSpl(targetPhon, basePreamp, finalPreamp);
         
@@ -131,6 +172,7 @@ double OptimalOffsetCalculator::getOptimalOffset(double targetPhon, double baseP
 
 void OptimalOffsetCalculator::loadMeasurements() {
     measuredTargetToDbSpl.clear();
+    measuredRefTargetToDbSpl.clear();
     
     // 기본 측정값 로드
     calibrationSettings->beginGroup("Measurements");
@@ -160,20 +202,40 @@ void OptimalOffsetCalculator::loadMeasurements() {
     }
     calibrationSettings->endGroup();
     
+    // 새로운 형식: (Reference, Target) 쌍으로 저장된 측정값 로드
+    calibrationSettings->beginGroup("RefTargetMeasurements");
+    keys = calibrationSettings->allKeys();
+    
+    for (const QString &key : keys) {
+        // key 형식: "Ref_90_Target_80" 같은 형식 예상
+        QStringList parts = key.split("_");
+        if (parts.size() == 4 && parts[0] == "Ref" && parts[2] == "Target") {
+            bool ok1, ok2;
+            double refPhon = parts[1].toDouble(&ok1);
+            double targetPhon = parts[3].toDouble(&ok2);
+            if (ok1 && ok2) {
+                double dbSpl = calibrationSettings->value(key).toDouble();
+                QPair<double, double> refTargetPair(refPhon, targetPhon);
+                measuredRefTargetToDbSpl[refTargetPair] = dbSpl;
+            }
+        }
+    }
+    calibrationSettings->endGroup();
+    
     // 측정값이 없는 경우 기본값 사용
     if (measuredTargetToDbSpl.isEmpty()) {
-        qDebug() << "No measurements found in INI file, using default values";
+        // qDebug() << "No measurements found in INI file, using default values";
         measuredTargetToDbSpl = {
             {40.0, 59.3}, {50.0, 65.4}, {60.0, 71.8},
-            {70.0, 77.7}, {80.0, 83.0}
+            {70.0, 77.7}, {80.0, 83.0}, {90.0, 88.3}
         };
     }
     
-    qDebug() << "Loaded" << measuredTargetToDbSpl.size() << "measurement points";
+    // qDebug() << "Loaded" << measuredTargetToDbSpl.size() << "measurement points";
 }
 
 void OptimalOffsetCalculator::runDemo() {
-    qDebug() << "=== Simple Optimal Offset Calculator ===";
+    // qDebug() << "=== Simple Optimal Offset Calculator ===";
     
     // 1. 최적값 테이블 생성
     generateOptimalOffsetTable(40.0, 80.0, 1.0);
@@ -185,7 +247,7 @@ void OptimalOffsetCalculator::runDemo() {
         // 예시 base preamp 사용
         double basePreamp = -18.0;
         double optimal = getOptimalOffset(target, basePreamp);
-        qDebug() << "Target" << target << "→ Optimal Offset:" << optimal;
+        // qDebug() << "Target" << target << "→ Optimal Offset:" << optimal;
     }
 }
 

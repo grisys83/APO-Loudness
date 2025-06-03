@@ -47,8 +47,9 @@ private:
     void updateConfig();
     void readConfig();
     double getRecommendedPreamp(double targetPhon, double referencePhon);
+    double calculateRealDbSpl(double targetPhon, double referencePhon, double basePreamp, double actualPreamp);
     double findClosestTargetToRealSPL(double currentRealSPL);
-    void handleGlobalWheel(int delta);
+    void handleGlobalWheel(int delta, bool ctrlPressed, bool altPressed, bool shiftPressed);
     void installGlobalHook();
     void uninstallGlobalHook();
 
@@ -68,6 +69,10 @@ private:
     int loudnessIndex;
     double targetPhonValue;
     double preampUserOffset;
+    int systemSampleRate;  // 44100 or 48000
+    
+    // Auto offset 모드 휠 누적 추적
+    int autoOffsetWheelAccumulator;
 
     // 마우스 드래그 관련
     bool leftMouseButtonPressed;

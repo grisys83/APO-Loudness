@@ -8,6 +8,7 @@
 #include <QTimer>
 #include <QSettings>
 #include <memory>
+#include "preampextrapolator.h"
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -38,6 +39,8 @@ private slots:
     void nextMeasurement();
     void previousMeasurement();
     void recordMeasurement();
+    void updateReferenceSelection();
+    void toggleAdvancedMode();
 
 private:
     void setupUI();
@@ -56,8 +59,10 @@ private:
     QPushButton *nextButton;
     QPushButton *backButton;
     QPushButton *recordButton;
+    QPushButton *advancedModeButton;
     QDoubleSpinBox *measuredSPLSpinBox;
     QTextEdit *resultsText;
+    bool isAdvancedMode;
     
     // Audio
     std::unique_ptr<QAudioSink> audioSink;
@@ -67,11 +72,17 @@ private:
     // Calibration state
     QVector<double> targetPhons;
     QMap<double, double> measurements;
+    QMap<QPair<double, double>, double> multiRefMeasurements; // <reference, target> -> measured SPL
     int currentMeasurementIndex;
     bool isCalibrating;
+    double currentReferencePhon;
+    QVector<double> referencePhons;
     
     // Settings
     QSettings *settings;
+    
+    // Extrapolation
+    PreampExtrapolator extrapolator;
 };
 
 #endif // CALIBRATIONHELPER_H

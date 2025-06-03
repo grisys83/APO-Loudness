@@ -15,6 +15,7 @@
 #include <QMessageBox>
 #include <QApplication>
 #include <QTimer>
+#include "preamp_data_v032.h"
 
 // --- Pre-calculated preamp values ---
 // Reference 80 Phon에서 Target Phon별 권장 Preamp 값
@@ -104,59 +105,7 @@ const QMap<double, double> recommendedPreampMap = {
          {80.0, -10.00}
 };
 
-// 실측 데이터: Reference 80 Phon에서 target phon에 대응하는 실제 측정된 dB SPL 값
-// Key: Target Phon, Value: 실측 dB SPL
-const QMap<double, double> measuredTargetToDbSpl = {
-    {40.0, 59.3}, {50.0, 65.4}, {60.0, 71.8}, {70.0, 77.7}, {80.0, 83.0}
-};
-
-// offset에 따른 preamp 변화량을 dB로 변환하는 함수
-double calculateOffsetEffect(double basePreamp, double offsetPreamp) {
-    // preamp를 0-100 범위로 변환
-    double baseRange = (basePreamp + 40.0) * 2.5;
-    double offsetRange = (offsetPreamp + 40.0) * 2.5;
-
-    // dB 변화량 계산: 20 * log10(ratio)
-    if (baseRange > 0 && offsetRange > 0) {
-        return 20.0 * log10(offsetRange / baseRange);
-    }
-    return 0.0;
-}
-
-// target phon과 offset을 고려한 실제 dB SPL 계산 (Reference 80 Phon 고정)
-double calculateRealDbSpl(double targetPhon, double referencePhon, double basePreamp, double offsetPreamp) {
-    // Reference는 항상 80.0으로 고정됨
-    Q_UNUSED(referencePhon);
-    
-    // 1. 측정 데이터에서 target phon에 대한 dB SPL 찾기
-    double baseDbSpl = 59.3; // fallback to target 40 value
-    
-    if (measuredTargetToDbSpl.contains(targetPhon)) {
-        baseDbSpl = measuredTargetToDbSpl.value(targetPhon);
-    } else {
-        // 선형 보간
-        QList<double> targets = measuredTargetToDbSpl.keys();
-        std::sort(targets.begin(), targets.end());
-
-        for (int i = 0; i < targets.size() - 1; ++i) {
-            if (targetPhon >= targets[i] && targetPhon <= targets[i + 1]) {
-                double x1 = targets[i];
-                double x2 = targets[i + 1];
-                double y1 = measuredTargetToDbSpl.value(x1);
-                double y2 = measuredTargetToDbSpl.value(x2);
-
-                baseDbSpl = y1 + (y2 - y1) * (targetPhon - x1) / (x2 - x1);
-                break;
-            }
-        }
-    }
-
-    // 2. offset 효과 계산
-    double offsetEffect = calculateOffsetEffect(basePreamp, offsetPreamp);
-
-    // 3. 최종 dB SPL = 기본값 + offset 효과
-    return baseDbSpl + offsetEffect;
-}
+// Real dB SPL calculation is now delegated to OptimalOffsetCalculator
 
 // --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
@@ -165,7 +114,7 @@ const double DEFAULT_REFERENCE_PHON = 80.0;
 const double DEFAULT_TARGET_PHON = 60.0;
 const double FALLBACK_PREAMP = -23.0; // 맵에 값이 없을 경우 사용할 가장 안전한 값
 const double TARGET_PHON_MIN = 40.0;
-const double TARGET_PHON_MAX = 80.0;
+// const double TARGET_PHON_MAX = 90.0;  // Currently unused
 
 #ifdef Q_OS_WIN
 HHOOK MainWindow::mouseHook = nullptr;
@@ -177,6 +126,7 @@ MainWindow::MainWindow(QWidget *parent)
     loudnessIndex(0),
     targetPhonValue(DEFAULT_TARGET_PHON),
     preampUserOffset(0.0),
+    autoOffsetWheelAccumulator(0),
     leftMouseButtonPressed(false),
     isAlwaysOnTop(true),
     isAutoOffset(false),  // Auto offset 기능 추가
@@ -195,7 +145,7 @@ MainWindow::MainWindow(QWidget *parent)
     label->setAlignment(Qt::AlignCenter);
     label->setWordWrap(true); // 텍스트 줄바꿈 허용
 
-    targetLoudness = {80.0}; // Single reference point (80 Phon)
+    targetLoudness = {75.0, 76.0, 77.0, 78.0, 79.0, 80.0, 81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0}; // Reference points (75-90 Phon)
 
     auto it_ref_default = std::find(targetLoudness.begin(), targetLoudness.end(), DEFAULT_REFERENCE_PHON);
     if (it_ref_default != targetLoudness.end()) {
@@ -213,6 +163,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     createContextMenu();
     readConfig();
+    
+    // 샘플레이트 감지 (기본값: 48000)
+    systemSampleRate = 48000;
+    
     updateConfig();
     
     // 글로벌 마우스 훅 설치
@@ -281,7 +235,7 @@ void MainWindow::toggleAutoOffset() {
         double currentReferencePhon = targetLoudness[loudnessIndex];
         double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
         double finalPreamp = basePreamp + preampUserOffset;
-        double currentRealSPL = calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
+        double currentRealSPL = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
         
         // 가장 가까운 target 찾기
         double newTarget = findClosestTargetToRealSPL(currentRealSPL);
@@ -291,7 +245,7 @@ void MainWindow::toggleAutoOffset() {
         basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
         preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
         
-        qDebug() << "Auto Offset ON: Real SPL" << currentRealSPL << "→ Target" << targetPhonValue << "with offset" << preampUserOffset;
+        // qDebug() << "Auto Offset ON: Real SPL" << currentRealSPL << "→ Target" << targetPhonValue << "with offset" << preampUserOffset;
         updateConfig();
     }
 }
@@ -301,34 +255,44 @@ void MainWindow::toggleCalibrationMode() {
     calibrationModeAction->setChecked(isCalibrationMode);
     
     if (isCalibrationMode) {
-        // Calibration Mode 활성화: 기본 설정으로
+        // Calibration Mode 활성화: Reference 80, Target 80으로 시작
+        loudnessIndex = 5;  // 80은 targetLoudness 배열에서 index 5
         targetPhonValue = 80.0;  // Start with 80 dB
         preampUserOffset = 0.0;
         isAutoOffset = false;
         autoOffsetAction->setChecked(false);
         
-        qDebug() << "Calibration Mode ON: Target 80dB, Offset 0dB";
+        // qDebug() << "Calibration Mode ON: Reference 80dB, Target 80dB, Offset 0dB";
     }
     
     updateConfig();
 }
 
 void MainWindow::showInfo() {
-    QString info = QString("ApoLoudness v0.3.1\n\n"
-                           "Controls:\n"
-                           "- Mouse Wheel: Offset (%1)\n"
-                           "- Ctrl + Wheel: Target Phon (40.0-80.0dB)\n"
-                           "- Right Click: Context Menu\n"
-                           "- Double Click: Reset to Default\n\n"
+    QString info = QString("ApoLoudness v0.3.2\n\n"
+                           "Mouse Controls:\n"
+                           "When cursor is over window:\n"
+                           "- Wheel: %1\n"
+                           "- Ctrl + Wheel: Adjust Target Phon\n"
+                           "- Alt + Wheel: Adjust Reference Phon (75-90dB)\n"
+                           "- Middle Click: Reset Offset to 0\n"
+                           "- Double Click: Reset all to defaults\n"
+                           "- Right Click: Context menu\n\n"
+                           "Global (anywhere):\n"
+                           "- Right Click + Wheel: Auto enable Auto Offset & adjust volume\n\n"
+                           "Auto Offset Mode:\n"
+                           "- Real SPL based volume control\n"
+                           "- Wheel up many times (10+): Increase Target & Reference together\n"
+                           "- When Target < 80, wheel down decreases Reference too\n\n"
                            "Current Settings:\n"
-                           "Target: %2 dB\n"
-                           "Reference: %3 dB (Fixed)\n"
-                           "Offset: %4 dB\n"
-                           "Auto Offset: %5\n"
-                           "Calibration Mode: %6")
-                       .arg(isAutoOffset ? "Auto Mode" : "Manual")
+                           "Target: %2 dB  Reference: %3 dB\n"
+                           "Offset: %4%5 dB  Auto Offset: %6\n"
+                           "Calibration Mode: %7")
+                       .arg(isCalibrationMode ? "Target (10dB steps)" : 
+                            (isAutoOffset ? "Target with Auto Offset" : "Manual Offset"))
                        .arg(targetPhonValue, 0, 'f', 1)
                        .arg(targetLoudness[loudnessIndex], 0, 'f', 1)
+                       .arg(preampUserOffset >= 0 ? "+" : "")
                        .arg(preampUserOffset, 0, 'f', 1)
                        .arg(isAutoOffset ? "ON" : "OFF")
                        .arg(isCalibrationMode ? "ON" : "OFF");
@@ -344,9 +308,10 @@ double MainWindow::findClosestTargetToRealSPL(double currentRealSPL) {
     // 가능한 target 범위 내에서 Real SPL과 가장 가까운 target 찾기
     double closestTarget = DEFAULT_TARGET_PHON;
     double minDifference = std::numeric_limits<double>::max();
+    double currentReferencePhon = targetLoudness[loudnessIndex];
     
-    // 0.1dB 단위로 검색
-    for (double target = TARGET_PHON_MIN; target <= TARGET_PHON_MAX; target += 0.1) {
+    // 0.1dB 단위로 검색 (현재 reference phon까지만)
+    for (double target = TARGET_PHON_MIN; target <= currentReferencePhon; target += 0.1) {
         double difference = std::abs(target - currentRealSPL);
         if (difference < minDifference) {
             minDifference = difference;
@@ -356,41 +321,68 @@ double MainWindow::findClosestTargetToRealSPL(double currentRealSPL) {
     
     // 0.1dB 단위로 반올림
     closestTarget = qRound(closestTarget * 10) / 10.0;
-    closestTarget = std::max(TARGET_PHON_MIN, std::min(closestTarget, TARGET_PHON_MAX));
+    closestTarget = std::max(TARGET_PHON_MIN, std::min(closestTarget, currentReferencePhon));
     
     return closestTarget;
 }
 
-double MainWindow::getRecommendedPreamp(double targetPhon, double referencePhon) {
-    // Reference는 항상 80.0으로 고정됨
-    Q_UNUSED(referencePhon);
-    
-    double targetKey = qRound(targetPhon * 10) / 10.0;
+double MainWindow::calculateRealDbSpl(double targetPhon, double referencePhon, double basePreamp, double actualPreamp) {
+    // Delegate to OptimalOffsetCalculator which now uses reference too
+    return optimalCalculator.calculateRealDbSpl(targetPhon, referencePhon, basePreamp, actualPreamp);
+}
 
+double MainWindow::getRecommendedPreamp(double targetPhon, double referencePhon) {
+    double targetKey = qRound(targetPhon * 10) / 10.0;
+    double refKey = qRound(referencePhon * 10) / 10.0;
+    
+    // Check if we have data for this reference phon
+    if (recommendedPreampMultiReference.contains(refKey)) {
+        const QMap<double, double>& refMap = recommendedPreampMultiReference[refKey];
+        
+        if (refMap.contains(targetKey)) {
+            return refMap.value(targetKey);
+        } else {
+            // targetKey에 대한 값이 없을 경우, 가장 가까운 낮은 targetKey의 값을 찾아 반환
+            auto it = refMap.lowerBound(targetKey);
+            if (it != refMap.begin() && (it == refMap.end() || it.key() != targetKey) ) {
+                --it; // 이전 키 값 사용
+                if (it.key() >= TARGET_PHON_MIN) return it.value();
+            } else if (it != refMap.end() && it.key() == targetKey) {
+                return it.value();
+            }
+        }
+    }
+    
+    // Fallback to 80.0 reference if available
+    if (refKey != 80.0 && recommendedPreampMultiReference.contains(80.0)) {
+        return getRecommendedPreamp(targetPhon, 80.0);
+    }
+    
+    // Use old single-reference map as final fallback
     if (recommendedPreampMap.contains(targetKey)) {
         return recommendedPreampMap.value(targetKey);
-    } else {
-        // targetKey에 대한 값이 없을 경우, 가장 가까운 낮은 targetKey의 값을 찾아 반환
-        auto it = recommendedPreampMap.lowerBound(targetKey);
-        if (it != recommendedPreampMap.begin() && (it == recommendedPreampMap.end() || it.key() != targetKey) ) {
-            --it; // 이전 키 값 사용
-            if (it.key() >= TARGET_PHON_MIN) return it.value();
-        } else if (it != recommendedPreampMap.end() && it.key() == targetKey) {
-            return it.value();
-        }
-        qDebug() << "Warning: No exact or lower bound Target Phon" << targetKey << " in map. Using fallback.";
     }
+    
+    // qDebug() << "Warning: No preamp data for Target" << targetKey << "Reference" << refKey;
     return FALLBACK_PREAMP;
 }
 
 void MainWindow::updateConfig() {
     double currentReferencePhon = targetLoudness[loudnessIndex];
 
-    targetPhonValue = std::max(TARGET_PHON_MIN, std::min(targetPhonValue, TARGET_PHON_MAX));
+    targetPhonValue = std::max(TARGET_PHON_MIN, std::min(targetPhonValue, currentReferencePhon));
     targetPhonValue = qRound(targetPhonValue * 10) / 10.0;
 
     double recommendedPreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
-    double finalPreampValue = recommendedPreamp + preampUserOffset;
+    double finalPreampValue;
+    
+    // Calibration 모드에서는 offset 무시하고 map 값만 사용
+    if (isCalibrationMode) {
+        finalPreampValue = recommendedPreamp;  // map 값 그대로 사용
+        preampUserOffset = 0.0;  // offset은 0으로 표시
+    } else {
+        finalPreampValue = recommendedPreamp + preampUserOffset;
+    }
 
     finalPreampValue = std::max(-40.0, std::min(finalPreampValue, 0.0)); // 안전 범위
     finalPreampValue = qRound(finalPreampValue * 10) / 10.0;
@@ -409,7 +401,7 @@ void MainWindow::updateConfig() {
     // 두 번째 줄: Preamp, Real dB SPL
     double basePreamp = recommendedPreamp; // offset 없는 기본 preamp
     double actualPreamp = finalPreampValue; // offset 포함 최종 preamp
-    double realDbSpl = calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, actualPreamp);
+    double realDbSpl = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, actualPreamp);
 
     QString secondLine = "Preamp: " + QString::number(finalPreampValue, 'f', 1) +
                          " dB  Real: " + QString::number(realDbSpl, 'f', 1) + " dB SPL";
@@ -426,85 +418,44 @@ void MainWindow::updateConfig() {
     
     label->setToolTip(QString("Target Phon / Reference Phon / Offset\n"
                               "Preamp / Real dB SPL\n\n"
-                              "Controls:\n"
+                              "Mouse Controls:\n"
                               "- Wheel: %1\n"
-                              "- Ctrl+Wheel: Target Phon\n"
-                              "- Right Click: Context Menu\n"
-                              "- Double Click: Reset")
+                              "- Ctrl+Wheel: Adjust Target Phon\n"
+                              "- Alt+Wheel: Adjust Reference (75-90)\n"
+                              "- Middle Click: Reset Offset\n"
+                              "- Double Click: Reset all to defaults\n"
+                              "- Right Click: Context menu\n"
+                              "- Right Click+Wheel: Enable Auto Offset")
                           .arg(wheelMode));
 
-    QFile configFile("C:/Program Files/EqualizerAPO/config/Loudness.txt");
+    QFile configFile("C:/Program Files/EqualizerAPO/config/ApoLoudness/ApoLoudness.txt");
     if (!configFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
-        qDebug() << "Error: Could not open Loudness.txt for writing.";
+        // qDebug() << "Error: Could not open ApoLoudness.txt for writing.";
         return;
     }
     QTextStream out(&configFile);
 
     out << "Preamp: " << QString::number(finalPreampValue, 'f', 1) << " dB\n";
     QString convFile = QString::number(targetPhonValue, 'f', 1) + "-" + QString::number(currentReferencePhon, 'f', 1) + "_filter.wav";
-    out << "Convolution: Filters/" << convFile;
+    QString filterPath = QString("../Filters/%1/").arg(systemSampleRate);
+    out << "Convolution: " << filterPath << convFile;
 
     configFile.close();
+    
+    // ApoLoudness 설정 파일 저장 (샘플레이트 등)
+    QFile settingsFile("C:/Program Files/EqualizerAPO/config/ApoLoudness/settings.ini");
+    if (settingsFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        QTextStream settingsOut(&settingsFile);
+        settingsOut << "SampleRate=" << systemSampleRate << "\n";
+        settingsFile.close();
+    }
 }
 
 void MainWindow::wheelEvent(QWheelEvent *event) {
-    const double phonScrollDelta = 1;
-    const double preampScrollDelta = 0.1;  // Very fine control for offset
-
-    if (event->modifiers() == Qt::ControlModifier) { 
-        // Ctrl + 휠: Target Phon 조정
-        if (event->angleDelta().y() > 0) {
-            targetPhonValue += phonScrollDelta;
-        } else {
-            targetPhonValue -= phonScrollDelta;
-        }
-        
-    } else if (event->modifiers() == Qt::AltModifier) { 
-        // Alt + 휠: Reference Phon 변경
-        if (event->angleDelta().y() > 0) {
-            loudnessIndex = (loudnessIndex + 1) % targetLoudness.size();
-        } else {
-            loudnessIndex = (loudnessIndex - 1 + targetLoudness.size()) % targetLoudness.size();
-        }
-        targetPhonValue = std::min(targetPhonValue, targetLoudness[loudnessIndex]);
-        
-    } else if (event->modifiers() == Qt::NoModifier) { 
-        // 기본 휠: Offset 조정 또는 Auto Offset 모드 또는 Calibration 모드
-        if (isCalibrationMode) {
-            // Calibration Mode: Target 값 빠르게 조정 (80->70->60->50->40)
-            double delta = event->angleDelta().y() > 0 ? 10.0 : -10.0;
-            targetPhonValue += delta;
-            targetPhonValue = std::max(40.0, std::min(targetPhonValue, 80.0));
-            targetPhonValue = qRound(targetPhonValue / 10.0) * 10.0;  // 10 단위로 반올림
-            
-        } else if (isAutoOffset) {
-            // Auto Offset: Target 변경시 최적 offset 자동 적용
-            double delta = event->angleDelta().y() > 0 ? 1.0 : -1.0;
-            double newTarget = targetPhonValue + delta;
-            newTarget = std::max(40.0, std::min(newTarget, 80.0));
-            
-            // 현재 base preamp 가져오기
-            double currentReferencePhon = targetLoudness[loudnessIndex];
-            double basePreamp = getRecommendedPreamp(newTarget, currentReferencePhon);
-            
-            // 새로운 target에 대한 최적 offset 적용
-            preampUserOffset = optimalCalculator.getOptimalOffset(newTarget, basePreamp);
-            targetPhonValue = newTarget;
-            
-        } else {
-            // Manual Offset 조정
-            if (event->angleDelta().y() > 0) {
-                preampUserOffset += preampScrollDelta;
-            } else {
-                preampUserOffset -= preampScrollDelta;
-            }
-            preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
-            preampUserOffset = std::max(-20.0, std::min(preampUserOffset, 10.0));
-        }
-    }
-
-    updateConfig();
+    // 마우스가 창 위에 있을 때의 휠 이벤트는 글로벌 훅에서 처리됨
+    // 여기서는 추가 처리 없이 이벤트만 accept
     event->accept();
+    return;
 }
 
 void MainWindow::mousePressEvent(QMouseEvent *event) {
@@ -556,7 +507,7 @@ void MainWindow::mouseDoubleClickEvent(QMouseEvent *event) {
         isAutoOffset = true;
         autoOffsetAction->setChecked(true);
 
-        qDebug() << "Double-click reset: Target=Real=60dB, Offset=" << preampUserOffset << ", Reference=" << targetLoudness[loudnessIndex] << ", Auto Offset ON";
+        // qDebug() << "Double-click reset: Target=Real=60dB, Offset=" << preampUserOffset << ", Reference=" << targetLoudness[loudnessIndex] << ", Auto Offset ON";
         updateConfig();
         event->accept();
     }
@@ -568,7 +519,24 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event) {
 }
 
 void MainWindow::readConfig() {
-    QFile configFile("C:/Program Files/EqualizerAPO/config/Loudness.txt");
+    // ApoLoudness 설정 파일 읽기 (샘플레이트 등)
+    QFile settingsFile("C:/Program Files/EqualizerAPO/config/ApoLoudness/settings.ini");
+    if (settingsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&settingsFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine();
+            if (line.startsWith("SampleRate=")) {
+                systemSampleRate = line.mid(11).toInt();
+                if (systemSampleRate != 44100 && systemSampleRate != 48000) {
+                    systemSampleRate = 48000; // 기본값
+                }
+                break;
+            }
+        }
+        settingsFile.close();
+    }
+    
+    QFile configFile("C:/Program Files/EqualizerAPO/config/ApoLoudness/ApoLoudness.txt");
 
     int initialLoudnessIndex = 0;
     auto it_ref_default = std::find(targetLoudness.begin(), targetLoudness.end(), DEFAULT_REFERENCE_PHON);
@@ -577,7 +545,7 @@ void MainWindow::readConfig() {
     }
 
     if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Warning: Could not open Loudness.txt. Using default values.";
+        // qDebug() << "Warning: Could not open ApoLoudness.txt. Using default values.";
         loudnessIndex = initialLoudnessIndex;
         targetPhonValue = DEFAULT_TARGET_PHON;
         preampUserOffset = 0.0;
@@ -616,7 +584,7 @@ void MainWindow::readConfig() {
                 convTargetPhonFromFile = match_old.captured(1).toDouble();
                 convReferencePhonFromFile = match_old.captured(2).toDouble();
             } else {
-                qDebug() << "Could not parse convolution filter line:" << convLine;
+                // qDebug() << "Could not parse convolution filter line:" << convLine;
             }
         }
     }
@@ -633,19 +601,20 @@ void MainWindow::readConfig() {
             if (difference < minDifference) { minDifference = difference; foundIndex = i; }
         }
         loudnessIndex = (foundIndex != -1) ? foundIndex : initialLoudnessIndex;
-        qDebug() << "Config: Reference Phon set to " << targetLoudness[loudnessIndex];
+        // qDebug() << "Config: Reference Phon set to " << targetLoudness[loudnessIndex];
     } else {
-        qDebug() << "Config: Could not get Reference Phon from file. Defaulting.";
+        // qDebug() << "Config: Could not get Reference Phon from file. Defaulting.";
         loudnessIndex = initialLoudnessIndex;
     }
 
     if (convTargetPhonFromFile != -1) {
         targetPhonValue = convTargetPhonFromFile;
-        targetPhonValue = std::max(TARGET_PHON_MIN, std::min(targetPhonValue, TARGET_PHON_MAX));
+        double currentReferencePhon = targetLoudness[loudnessIndex];
+        targetPhonValue = std::max(TARGET_PHON_MIN, std::min(targetPhonValue, currentReferencePhon));
         targetPhonValue = qRound(targetPhonValue * 10) / 10.0;
-        qDebug() << "Config: Target Phon set to " << targetPhonValue;
+        // qDebug() << "Config: Target Phon set to " << targetPhonValue;
     } else {
-        qDebug() << "Config: Could not get Target Phon from file. Defaulting.";
+        // qDebug() << "Config: Could not get Target Phon from file. Defaulting.";
         targetPhonValue = DEFAULT_TARGET_PHON;
     }
 
@@ -654,9 +623,9 @@ void MainWindow::readConfig() {
         preampUserOffset = loadedPreampFromFile - recommendedPreampForLoaded;
         preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
         preampUserOffset = std::max(-20.0, std::min(preampUserOffset, 10.0)); // 새로운 offset 범위
-        qDebug() << "Config: Preamp " << loadedPreampFromFile << ", RecPreamp " << recommendedPreampForLoaded << ", UserOffset " << preampUserOffset;
+        // qDebug() << "Config: Preamp " << loadedPreampFromFile << ", RecPreamp " << recommendedPreampForLoaded << ", UserOffset " << preampUserOffset;
     } else {
-        qDebug() << "Config: Invalid/missing preamp. Resetting user offset.";
+        // qDebug() << "Config: Invalid/missing preamp. Resetting user offset.";
         preampUserOffset = 0.0;
     }
 }
@@ -673,25 +642,143 @@ void MainWindow::checkGlobalMouseState()
 #endif
 }
 
-void MainWindow::handleGlobalWheel(int delta)
+void MainWindow::handleGlobalWheel(int delta, bool ctrlPressed, bool altPressed, bool shiftPressed)
 {
-    if (!isAutoOffset || !globalRightMousePressed) return;
+    const double phonScrollDelta = 1;
+    const double preampScrollDelta = 0.1;
     
-    // Auto Offset 모드에서 Target 변경
-    double deltaDegrees = delta / 8.0;
-    double steps = deltaDegrees / 15.0;
-    double targetDelta = steps > 0 ? 1.0 : -1.0;
+    // qDebug() << "GlobalWheel: delta=" << delta 
+    //          << "Ctrl=" << ctrlPressed 
+    //          << "Alt=" << altPressed 
+    //          << "Shift=" << shiftPressed;
     
-    double newTarget = targetPhonValue + targetDelta;
-    newTarget = std::max(40.0, std::min(newTarget, 80.0));
-    
-    // 현재 base preamp 가져오기
-    double currentReferencePhon = targetLoudness[loudnessIndex];
-    double basePreamp = getRecommendedPreamp(newTarget, currentReferencePhon);
-    
-    // 새로운 target에 대한 최적 offset 적용
-    preampUserOffset = optimalCalculator.getOptimalOffset(newTarget, basePreamp);
-    targetPhonValue = newTarget;
+    // Ctrl + 휠: Target Phon 조정
+    if (ctrlPressed && !altPressed && !shiftPressed) {
+        if (delta > 0) {
+            targetPhonValue += phonScrollDelta;
+        } else if (delta < 0) {
+            targetPhonValue -= phonScrollDelta;
+        }
+        double currentReferencePhon = targetLoudness[loudnessIndex];
+        targetPhonValue = std::min(targetPhonValue, currentReferencePhon);
+    }
+    // Alt + 휠: Reference Phon 변경
+    else if (altPressed && !ctrlPressed && !shiftPressed) {
+        // int oldIndex = loudnessIndex;
+        // double oldReference = targetLoudness[loudnessIndex];
+        
+        if (delta > 0) {
+            if (loudnessIndex < targetLoudness.size() - 1) {
+                loudnessIndex++;
+            }
+        } else if (delta < 0) {
+            if (loudnessIndex > 0) {
+                loudnessIndex--;
+            }
+        }
+        
+        // qDebug() << "Alt+Wheel: oldIndex=" << oldIndex << "newIndex=" << loudnessIndex
+        //          << "oldRef=" << oldReference << "newRef=" << targetLoudness[loudnessIndex];
+        
+        targetPhonValue = std::min(targetPhonValue, targetLoudness[loudnessIndex]);
+    }
+    // 기본 휠: Offset 조정 또는 Auto Offset 모드
+    else if (!ctrlPressed && !altPressed && !shiftPressed) {
+        if (isCalibrationMode) {
+            // Calibration Mode - Target을 10dB 단위로 조정
+            double currentReferencePhon = targetLoudness[loudnessIndex];
+            if (delta > 0) {
+                // 위로: Target 증가 (Reference까지)
+                if (targetPhonValue < currentReferencePhon) {
+                    targetPhonValue += 10.0;
+                    targetPhonValue = std::min(targetPhonValue, currentReferencePhon);
+                }
+            } else {
+                // 아래로: Target 감소 (최소 40까지)
+                if (targetPhonValue > 40.0) {
+                    targetPhonValue -= 10.0;
+                    targetPhonValue = std::max(40.0, targetPhonValue);
+                }
+            }
+            targetPhonValue = qRound(targetPhonValue / 10.0) * 10.0;  // 10 단위로 반올림
+        } else if (isAutoOffset) {
+            // Auto Offset mode - Real SPL 기반 볼륨 조절
+            double currentReferencePhon = targetLoudness[loudnessIndex];
+            double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
+            
+            if (delta > 0) {
+                // 휠을 위로 돌림 - Real SPL 1dB 증가
+                autoOffsetWheelAccumulator++;
+                
+                // 휠을 "많이" 돌렸으면 (10번 이상) - Target이 Reference에 도달하지 않아도 동작
+                if (autoOffsetWheelAccumulator >= 10) {
+                    // Reference가 90 미만이면 Reference와 Target 모두 1 증가
+                    if (loudnessIndex < targetLoudness.size() - 1) {
+                        loudnessIndex++;
+                        targetPhonValue = targetPhonValue + 1.0;
+                        if (targetPhonValue > targetLoudness[loudnessIndex]) {
+                            targetPhonValue = targetLoudness[loudnessIndex];
+                        }
+                        autoOffsetWheelAccumulator = 0; // 리셋
+                        
+                        // 새로운 설정에 맞는 offset 계산
+                        basePreamp = getRecommendedPreamp(targetPhonValue, targetLoudness[loudnessIndex]);
+                        preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
+                    }
+                } else {
+                    // Target이 Reference보다 낮으면 Target만 증가
+                    if (targetPhonValue < currentReferencePhon) {
+                        targetPhonValue += 1.0;
+                        basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
+                        preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
+                    }
+                }
+            } else if (delta < 0) {
+                // 휠을 아래로 돌림 - Real SPL 1dB 감소
+                autoOffsetWheelAccumulator = 0; // 아래로 돌리면 항상 리셋
+                
+                // Target이 80 미만이면 Reference도 함께 감소 (80까지)
+                if (targetPhonValue < 80.0 && loudnessIndex > 5) {
+                    loudnessIndex--;
+                    targetPhonValue = std::max(40.0, targetPhonValue - 1.0);
+                } 
+                // Target이 80 이상이면
+                else {
+                    // Reference가 80보다 크고 Target이 Reference와 같으면 함께 감소
+                    if (loudnessIndex > 5 && targetPhonValue >= currentReferencePhon) {
+                        loudnessIndex--;
+                        targetPhonValue = targetLoudness[loudnessIndex];
+                    } else {
+                        // 그 외의 경우 Target만 감소
+                        targetPhonValue = std::max(40.0, targetPhonValue - 1.0);
+                    }
+                }
+                
+                // 새로운 설정에 맞는 offset 계산
+                basePreamp = getRecommendedPreamp(targetPhonValue, targetLoudness[loudnessIndex]);
+                preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
+            }
+        } else {
+            // Manual Offset 조정
+            double proposedOffset = preampUserOffset;
+            if (delta > 0) {
+                proposedOffset += preampScrollDelta;
+            } else {
+                proposedOffset -= preampScrollDelta;
+            }
+            proposedOffset = qRound(proposedOffset * 10) / 10.0;
+            proposedOffset = std::max(-20.0, std::min(proposedOffset, 10.0));
+            
+            double currentReferencePhon = targetLoudness[loudnessIndex];
+            double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
+            double finalPreamp = basePreamp + proposedOffset;
+            double realSPL = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
+            
+            if (realSPL <= targetPhonValue) {
+                preampUserOffset = proposedOffset;
+            }
+        }
+    }
     
     updateConfig();
 }
@@ -702,7 +789,7 @@ void MainWindow::installGlobalHook()
     if (!mouseHook) {
         mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, GetModuleHandle(NULL), 0);
         if (!mouseHook) {
-            qDebug() << "Failed to install mouse hook";
+            // qDebug() << "Failed to install mouse hook";
         }
     }
 #endif
@@ -734,9 +821,43 @@ LRESULT CALLBACK MainWindow::MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
             MSLLHOOKSTRUCT *mouseStruct = (MSLLHOOKSTRUCT*)lParam;
             short wheelDelta = HIWORD(mouseStruct->mouseData);
             
-            // Auto Offset이 켜져 있고 오른쪽 마우스 버튼이 눌려있을 때만 처리
-            if (instance->isAutoOffset && instance->globalRightMousePressed) {
-                instance->handleGlobalWheel(wheelDelta);
+            // 키보드 상태 확인
+            bool ctrlPressed = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+            bool altPressed = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;  // VK_MENU는 Alt 키
+            bool shiftPressed = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+            
+            // 마우스 위치 확인
+            POINT cursorPos;
+            GetCursorPos(&cursorPos);
+            HWND windowUnderCursor = WindowFromPoint(cursorPos);
+            HWND appWindow = (HWND)instance->winId();
+            
+            // 오른쪽 마우스 버튼이 눌려있는지 확인
+            bool rightMousePressed = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+            
+            // 두 가지 경우에만 휠 이벤트 처리:
+            // 1. 마우스가 프로그램 창 위에 있을 때
+            // 2. 오른쪽 마우스 버튼 + 휠 (어디서든)
+            if (windowUnderCursor == appWindow || rightMousePressed) {
+                // 오른쪽 마우스 + 휠이면 Auto Offset 활성화
+                if (rightMousePressed && !instance->isAutoOffset) {
+                    instance->isAutoOffset = true;
+                    instance->autoOffsetAction->setChecked(true);
+                    
+                    // Auto Offset 활성화 시 초기 설정
+                    double currentReferencePhon = instance->targetLoudness[instance->loudnessIndex];
+                    double basePreamp = instance->getRecommendedPreamp(instance->targetPhonValue, currentReferencePhon);
+                    double finalPreamp = basePreamp + instance->preampUserOffset;
+                    double currentRealSPL = instance->optimalCalculator.calculateRealDbSpl(instance->targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
+                    
+                    double newTarget = instance->findClosestTargetToRealSPL(currentRealSPL);
+                    instance->targetPhonValue = newTarget;
+                    
+                    basePreamp = instance->getRecommendedPreamp(instance->targetPhonValue, currentReferencePhon);
+                    instance->preampUserOffset = instance->optimalCalculator.getOptimalOffset(instance->targetPhonValue, basePreamp);
+                }
+                
+                instance->handleGlobalWheel(wheelDelta, ctrlPressed, altPressed, shiftPressed);
                 return 1; // 이벤트 소비
             }
         }

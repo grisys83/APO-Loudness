@@ -5,13 +5,15 @@
 #include <QVector>
 #include <QDebug>
 #include <QSettings>
+#include <QPair>
 #include <cmath>
 #include <algorithm>
 
 class OptimalOffsetCalculator {
 private:
     // 실측 데이터 (INI 파일에서 로드됨)
-    QMap<double, double> measuredTargetToDbSpl;
+    QMap<double, double> measuredTargetToDbSpl;  // Legacy: Target만 사용
+    QMap<QPair<double, double>, double> measuredRefTargetToDbSpl;  // New: (Reference, Target) 쌍
     
     // 계산된 최적 offset 룩업 테이블
     QMap<double, double> optimalOffsetLookup;
@@ -26,8 +28,9 @@ public:
     // 기존 offset 효과 계산 함수
     double calculateOffsetEffect(double basePreamp, double offsetPreamp);
     
-    // 기존 Real dB SPL 계산 함수
+    // 기존 Real dB SPL 계산 함수 (이제 reference도 고려)
     double calculateRealDbSpl(double targetPhon, double basePreamp, double offsetPreamp);
+    double calculateRealDbSpl(double targetPhon, double referencePhon, double basePreamp, double offsetPreamp);
     
     // 주어진 target에 대해 최적 offset 찾기 (브루트 포스)
     double findOptimalOffset(double targetPhon, double basePreamp, double tolerance = 0.1);

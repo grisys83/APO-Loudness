@@ -1,4 +1,4 @@
-# ApoLoudness User Manual v0.3.1
+# ApoLoudness User Manual v0.3.2
 
 ## 🎵 What is ApoLoudness?
 
@@ -17,7 +17,7 @@ Human ears have different frequency sensitivities depending on volume. At quiet 
 
 ### Download Links
 
-- **Windows Installer**: [ApoLoudness_v0.3.1_Setup.exe](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.1/ApoLoudness_v0.3.1_Setup.exe)
+- **Windows Installer**: [ApoLoudness_v0.3.2_Setup.exe](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.2/ApoLoudness_v0.3.2_Setup.exe)
 - Includes automatic sample rate detection (44.1kHz/48.0kHz)
 
 ### ⚠️ Important Legal Notice
@@ -29,7 +29,7 @@ Human ears have different frequency sensitivities depending on volume. At quiet 
 ### Installation Steps
 
 #### Step 1: Install ApoLoudness
-1. Download and run `ApoLoudness_v0.3.1_Setup.exe`
+1. Download and run `ApoLoudness_v0.3.2_Setup.exe`
 2. The installer will detect your audio device's sample rate
 3. Confirm or change the sample rate (44.1kHz or 48.0kHz)
 4. Installation path: `C:\Program Files\EqualizerAPO\config\ApoLoudness\`
@@ -62,6 +62,10 @@ The installer automatically:
 
 ### Calibration Process
 
+#### Understanding Calibration
+
+ApoLoudness now uses advanced (Reference, Target) pair calibration for more accurate Real SPL estimation. However, you don't need to measure all 21 combinations - the system can intelligently interpolate missing values.
+
 #### Step 1: Launch Programs
 
 1. Run `ApoLoudnessCalibration.exe`
@@ -80,13 +84,29 @@ The installer automatically:
 3. Adjust amp volume until SPL meter shows exactly 80dB
 4. Enter 80 in "Measured SPL" and click Next
 
-#### Step 3: Step-by-Step Measurement (70dB → 60dB → 50dB → 40dB)
+#### Step 3: Measurement Process
 
-1. In ApoLoudness window, scroll mouse wheel to set Target to 70
-2. Click "Play Test Tone" in Calibration
-3. Enter SPL meter reading in "Measured SPL"
-4. Click Next
-5. Repeat for 60dB, 50dB, 40dB
+**Simplified Approach (Recommended for most users):**
+- Measure Reference 80 with Targets: 40, 50, 60, 70, 80
+- This covers the most common usage scenarios
+- Other combinations will be intelligently estimated
+
+**Comprehensive Approach (For advanced users):**
+The system supports measuring all combinations:
+- **Reference 90:** Targets 40, 50, 60, 70, 80, 90
+- **Reference 80:** Targets 40, 50, 60, 70, 80  
+- **Reference 70:** Targets 40, 50, 60, 70
+- **Reference 60:** Targets 40, 50, 60
+- **Reference 50:** Targets 40, 50
+- **Reference 40:** Target 40
+
+Process:
+1. In Calibration Mode, preamp uses exact map values (no offset)
+2. Use Alt + Wheel to set Reference level
+3. Use Wheel to adjust Target in 10dB steps
+4. Click "Play Test Tone" and measure SPL
+5. Enter reading and click Next
+6. The system saves as (Reference, Target) pairs for accurate lookup
 
 #### Step 4: Save
 
@@ -101,28 +121,50 @@ The installer automatically:
 
 ## 🚀 How to Use
 
+### 🖱️ Mouse Controls (Complete Guide)
+
+#### When Mouse is Over Program Window:
+- **Mouse Wheel**: Adjust based on current mode
+  - Manual Mode: Offset adjustment (-20 to 0dB)
+  - Auto Offset Mode: Real SPL based volume control
+  - Calibration Mode: Target adjustment in 10dB steps
+- **Ctrl + Wheel**: Target Phon adjustment (1dB steps)
+- **Alt + Wheel**: Reference Phon adjustment (75-90dB range)
+- **Middle Click**: Reset Offset to 0
+- **Double Click**: Reset all to defaults (Target=60, Reference=80, Auto Offset ON)
+- **Right Click**: Open context menu
+
+#### Global Control (Works Anywhere):
+- **Right Mouse Button + Wheel**: Automatically activates Auto Offset mode and adjusts volume
+  - Works even when mouse is outside the program window
+  - Perfect for quick volume adjustments while using other applications
+
 ### Auto Offset Mode (Recommended)
 
 After calibration is complete, turning on Auto Offset lets you experience the true value of ApoLoudness.
 
 **Auto Offset Features**:
-- Target and Real automatically linked
-- Optimal Offset automatically calculated when scrolling
-- Perfect tonal balance maintained
+- Real SPL based volume control
+- Automatic tonal balance optimization
+- Smart Target/Reference adjustment:
+  - Wheel up normally: Increases Target up to Reference
+  - Wheel up "a lot" (10+ times): Increases both Target and Reference by 1
+  - Wheel down: Decreases Target, and Reference follows when Target < 80
 
 **How to Use**:
-1. ApoLoudness right-click → Check "Auto Offset"
-2. Hover mouse over program window → Adjust volume with scroll wheel
-3. Double-click: Restore defaults (Target 60, Real 60 SPL)
+1. Right-click → Check "Auto Offset" OR use Right Mouse + Wheel anywhere
+2. Adjust volume with scroll wheel for Real SPL based control
+3. Double-click to reset to defaults
 
 ### Manual Mode (Advanced Users)
 
 Use when you want fine manual adjustments with Auto Offset off.
 
 **Controls**:
-- **Scroll wheel**: Adjust Offset (like normal volume)
-- **Ctrl + wheel**: Adjust Target (maintain bass while adjusting volume)
-- **Alt + wheel**: Adjust Reference (advanced setting)
+- **Scroll wheel**: Adjust Offset (traditional volume control)
+- **Ctrl + wheel**: Adjust Target (desired loudness level)
+- **Alt + wheel**: Adjust Reference (75-90dB range)
+- Real SPL cannot exceed Target (automatic limiting)
 
 ## 🎛️ Interface Description
 
@@ -236,7 +278,21 @@ Actively use Auto Offset mode to enjoy ApoLoudness's unique volume control exper
 
 ---
 
-## Legacy v0.2 Documentation
+## Version History
+
+### v0.3.2 Changes:
+
+* **Extended Range**: Target and Reference now support up to 85dB
+* **Improved Step Control**: Target adjustment in 1dB increments from 80-85dB
+* **Enhanced Multi-Reference Support**: Better preamp calculation for different reference levels
+* **Updated Preamp Data**: More accurate preamp values for extended range
+
+### v0.3.1 Changes:
+
+* **Calibration Program**: New dedicated calibration tool
+* **Auto Offset Mode**: Automatic tonal balance optimization
+* **Real SPL Display**: Shows calibrated sound pressure level
+* **Enhanced UI**: Improved interface with dual-line display
 
 ### v0.2 Changes:
 

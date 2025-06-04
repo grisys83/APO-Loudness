@@ -103,21 +103,54 @@ ApoLoudness now uses advanced (Reference, Target) pair calibration for more accu
 - Other combinations will be intelligently estimated
 
 **Comprehensive Approach (For advanced users):**
-The system supports measuring all combinations:
-- **Reference 90:** Targets 40, 50, 60, 70, 80, 90
-- **Reference 80:** Targets 40, 50, 60, 70, 80  
-- **Reference 70:** Targets 40, 50, 60, 70
-- **Reference 60:** Targets 40, 50, 60
-- **Reference 50:** Targets 40, 50
-- **Reference 40:** Target 40
 
-Process:
-1. In Calibration Mode, preamp uses exact map values (no offset)
-2. Use Alt + Wheel to set Reference level
-3. Use Wheel to adjust Target in 10dB steps
-4. Click "Play Test Tone" and measure SPL
-5. Enter reading and click Next
-6. The system saves as (Reference, Target) pairs for accurate lookup
+The ApoLoudnessCalibration tool uses an intelligent sequential measurement system:
+
+1. **Initial Setup (Pink Noise)**:
+   - Click "Pink Noise" button to generate 0dB full-scale pink noise
+   - Adjust your amplifier volume until SPL meter shows exactly 80 dB
+   - This establishes your system's reference level
+   - Enter 80 in "Measured SPL" field and click Next
+
+2. **Automatic Measurement Sequence**:
+   The calibration helper automatically guides you through optimal measurement points:
+   - **Primary sequence**: 80→75→70→65→60→55→50→45→40 dB (5 dB steps)
+   - **Advanced mode**: Adds intermediate 2.5 dB steps for finer calibration
+   - Each measurement is saved as a (Reference, Target) pair
+
+3. **Multi-Reference Calibration**:
+   After completing Reference 80, the tool can guide you through additional references:
+   - **Reference 90**: Measures 90→85→80→75→70→65→60→55→50→45→40
+   - **Reference 85**: Measures 85→80→75→70→65→60→55→50→45→40
+   - **Reference 75**: Measures 75→70→65→60→55→50→45→40
+   - And so on...
+
+4. **Measurement Process**:
+   - The tool displays: "Please set Target to X.X and measure SPL"
+   - In ApoLoudness, use Calibration Mode (right-click → Calibration Mode)
+   - Use Alt+Wheel to set Reference as instructed
+   - Use Wheel to set Target in 10 dB steps (Calibration Mode)
+   - Click "Play Test Tone" in calibration helper
+   - Read SPL from your meter
+   - Enter the measured value and click Next
+   - The tool automatically advances to the next measurement
+
+5. **Data Storage**:
+   All measurements are saved in `calibration.ini` with intelligent formatting:
+   ```ini
+   [RefTargetMeasurements]
+   Ref_80_Target_80=80.0
+   Ref_80_Target_75=75.3
+   Ref_80_Target_70=70.1
+   Ref_80_Target_65=65.2
+   Ref_80_Target_60=60.0
+   ...
+   ```
+
+6. **Completion**:
+   - Click "Save Calibration" when all desired measurements are complete
+   - The tool creates a backup of previous calibration with timestamp
+   - ApoLoudness will use these measurements for accurate Real SPL estimation
 
 #### Step 4: Save
 

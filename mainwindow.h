@@ -11,6 +11,7 @@
 #include <QVector>
 #include <QPoint>
 #include <QTimer>
+#include <QSystemTrayIcon>
 #include "optimaloffsetcalculator.h"
 
 #ifdef Q_OS_WIN
@@ -41,6 +42,9 @@ private slots:
     void showInfo();
     void exitApplication();
     void checkGlobalMouseState();
+    void hideToTray();
+    void trayIconActivated(QSystemTrayIcon::ActivationReason reason);
+    void showFromTray();
 
 private:
     void createContextMenu();
@@ -67,6 +71,10 @@ private:
     QString getSPLColorCode(double realDbSpl);
     QString formatMainDisplay(double realDbSpl, const QString& safeTime, const QString& color);
     QString formatTechnicalDetails(double targetPhon, double referencePhon, double offset, double finalPreamp);
+    
+    // Tray icon methods
+    void createTrayIcon();
+    void createTrayMenu();
 
     // UI 컴포넌트
     QLabel *label;
@@ -77,7 +85,14 @@ private:
     QAction *autoOffsetAction;
     QAction *calibrationModeAction;
     QAction *infoAction;
+    QAction *hideToTrayAction;
     QAction *exitAction;
+    
+    // Tray icon
+    QSystemTrayIcon *trayIcon;
+    QMenu *trayMenu;
+    QAction *trayShowAction;
+    QAction *trayExitAction;
 
     // 상태 변수들
     QVector<double> targetLoudness;

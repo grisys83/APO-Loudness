@@ -199,6 +199,7 @@ MainWindow::MainWindow(QWidget *parent)
     globalMouseTimer->start(50); // 50ms 간격으로 체크
 
     createContextMenu();
+    createTrayIcon();
     readConfig();
     
     // 샘플레이트 감지 (기본값: 48000)
@@ -239,6 +240,9 @@ void MainWindow::createContextMenu() {
     infoAction = new QAction("Info", this);
     connect(infoAction, &QAction::triggered, this, &MainWindow::showInfo);
 
+    hideToTrayAction = new QAction("Hide to Tray", this);
+    connect(hideToTrayAction, &QAction::triggered, this, &MainWindow::hideToTray);
+
     exitAction = new QAction("Exit", this);
     connect(exitAction, &QAction::triggered, this, &MainWindow::exitApplication);
 
@@ -248,6 +252,7 @@ void MainWindow::createContextMenu() {
     contextMenu->addSeparator();
     contextMenu->addAction(infoAction);
     contextMenu->addSeparator();
+    contextMenu->addAction(hideToTrayAction);
     contextMenu->addAction(exitAction);
 }
 
@@ -316,7 +321,8 @@ void MainWindow::showInfo() {
                            "• Double Click: Reset all + Auto ON\n"
                            "• Right Click: Context menu\n\n"
                            "🌐 Anywhere on screen:\n"
-                           "• Right Click+Wheel: Auto-enable Auto Offset + volume\n\n"
+                           "• Right Click+Wheel: Auto-enable Auto Offset + volume\n"
+                           "• Alt+Right Click+Wheel: Adjust Reference (75-90dB)\n\n"
                            "📊 Auto Offset Mode (Recommended):\n"
                            "• Real SPL based volume control\n"
                            "• ≤80dB: Auto tone balance correction\n"
@@ -783,30 +789,45 @@ LRESULT CALLBACK MainWindow::MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
             // 오른쪽 마우스 버튼이 눌려있는지 확인
             bool rightMousePressed = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
             
-            // 두 가지 경우에만 휠 이벤트 처리:
+            // 세 가지 경우에 휠 이벤트 처리:
             // 1. 마우스가 프로그램 창 위에 있을 때
-            // 2. 오른쪽 마우스 버튼 + 휠 (어디서든)
+            // 2. 오른쪽 마우스 버튼 + 휠 (어디서든) - Auto Offset 모드
+            // 3. Alt + 오른쪽 마우스 버튼 + 휠 (어디서든) - Reference 조정
             if (windowUnderCursor == appWindow || rightMousePressed) {
-                // 오른쪽 마우스 + 휠이면 Auto Offset 활성화
-                if (rightMousePressed && !instance->isAutoOffset) {
-                    instance->isAutoOffset = true;
-                    instance->autoOffsetAction->setChecked(true);
-                    
-                    // Auto Offset 활성화 시 초기 설정
-                    double currentReferencePhon = instance->targetLoudness[instance->loudnessIndex];
-                    double basePreamp = instance->getRecommendedPreamp(instance->targetPhonValue, currentReferencePhon);
-                    double finalPreamp = basePreamp + instance->preampUserOffset;
-                    double currentRealSPL = instance->optimalCalculator.calculateRealDbSpl(instance->targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
-                    
-                    double newTarget = instance->findClosestTargetToRealSPL(currentRealSPL);
-                    instance->targetPhonValue = newTarget;
-                    
-                    basePreamp = instance->getRecommendedPreamp(instance->targetPhonValue, currentReferencePhon);
-                    instance->preampUserOffset = instance->optimalCalculator.getOptimalOffset(instance->targetPhonValue, basePreamp);
+                // Alt + 오른쪽 마우스 + 휠: Reference 조정 (전역)
+                if (altPressed && rightMousePressed) {
+                    instance->adjustReference(wheelDelta);
+                    instance->updateConfig();
+                    return 1; // 이벤트 소비
                 }
-                
-                instance->handleGlobalWheel(wheelDelta, ctrlPressed, altPressed, shiftPressed);
-                return 1; // 이벤트 소비
+                // 오른쪽 마우스 + 휠 (Alt 없이): Auto Offset 활성화 및 볼륨 조정
+                else if (rightMousePressed && !altPressed) {
+                    // Auto Offset 활성화
+                    if (!instance->isAutoOffset) {
+                        instance->isAutoOffset = true;
+                        instance->autoOffsetAction->setChecked(true);
+                        
+                        // Auto Offset 활성화 시 초기 설정
+                        double currentReferencePhon = instance->targetLoudness[instance->loudnessIndex];
+                        double basePreamp = instance->getRecommendedPreamp(instance->targetPhonValue, currentReferencePhon);
+                        double finalPreamp = basePreamp + instance->preampUserOffset;
+                        double currentRealSPL = instance->optimalCalculator.calculateRealDbSpl(instance->targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
+                        
+                        double newTarget = instance->findClosestTargetToRealSPL(currentRealSPL);
+                        instance->targetPhonValue = newTarget;
+                        
+                        basePreamp = instance->getRecommendedPreamp(instance->targetPhonValue, currentReferencePhon);
+                        instance->preampUserOffset = instance->optimalCalculator.getOptimalOffset(instance->targetPhonValue, basePreamp);
+                    }
+                    
+                    instance->handleGlobalWheel(wheelDelta, ctrlPressed, false, shiftPressed); // altPressed를 false로 전달
+                    return 1; // 이벤트 소비
+                }
+                // 마우스가 창 위에 있을 때: 일반 휠 처리
+                else if (windowUnderCursor == appWindow) {
+                    instance->handleGlobalWheel(wheelDelta, ctrlPressed, altPressed, shiftPressed);
+                    return 1; // 이벤트 소비
+                }
             }
         }
     }
@@ -994,5 +1015,76 @@ void MainWindow::handleManualOffsetWheel(int delta) {
         // Final preamp이 0이 되도록 offset 제한
         preampUserOffset = PREAMP_MAX - basePreamp;
         preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
+    }
+}
+
+// ==================== Tray Icon Methods ====================
+
+void MainWindow::createTrayIcon() {
+    if (!QSystemTrayIcon::isSystemTrayAvailable()) {
+        return;
+    }
+    
+    trayIcon = new QSystemTrayIcon(this);
+    trayIcon->setIcon(QIcon(":/appicon.ico"));
+    trayIcon->setToolTip("ApoLoudness");
+    
+    createTrayMenu();
+    
+    connect(trayIcon, &QSystemTrayIcon::activated, this, &MainWindow::trayIconActivated);
+}
+
+void MainWindow::createTrayMenu() {
+    trayMenu = new QMenu(this);
+    
+    trayShowAction = new QAction("Show ApoLoudness", this);
+    connect(trayShowAction, &QAction::triggered, this, &MainWindow::showFromTray);
+    
+    trayExitAction = new QAction("Exit", this);
+    connect(trayExitAction, &QAction::triggered, this, &MainWindow::exitApplication);
+    
+    trayMenu->addAction(trayShowAction);
+    trayMenu->addSeparator();
+    trayMenu->addAction(trayExitAction);
+    
+    trayIcon->setContextMenu(trayMenu);
+}
+
+void MainWindow::hideToTray() {
+    if (QSystemTrayIcon::isSystemTrayAvailable() && trayIcon) {
+        hide();
+        trayIcon->show();
+        
+        if (!trayIcon->supportsMessages()) {
+            return;
+        }
+        
+        trayIcon->showMessage(
+            "ApoLoudness",
+            "ApoLoudness is running in the system tray.\nClick the icon to restore.",
+            QSystemTrayIcon::Information,
+            2000
+        );
+    }
+}
+
+void MainWindow::trayIconActivated(QSystemTrayIcon::ActivationReason reason) {
+    switch (reason) {
+        case QSystemTrayIcon::Trigger:
+        case QSystemTrayIcon::DoubleClick:
+            showFromTray();
+            break;
+        default:
+            break;
+    }
+}
+
+void MainWindow::showFromTray() {
+    show();
+    raise();
+    activateWindow();
+    
+    if (trayIcon && trayIcon->isVisible()) {
+        trayIcon->hide();
     }
 }

@@ -1,10 +1,10 @@
-# ApoLoudness User Manual v0.3.3
+# ApoLoudness User Manual v0.3.5
 
 ## 🎵 What is ApoLoudness?
 
 **"An innovative audio tool that maintains tonal balance regardless of volume changes"**
 
-ApoLoudness is a program that maintains the same tonal balance as 80dB even at low volumes. This allows you to enjoy rich bass and natural timbre while protecting your hearing.
+ApoLoudness is a program that maintains optimal tonal balance even at low volumes. This allows you to enjoy rich bass and natural timbre while protecting your hearing.
 
 ## 🔬 How It Works (Simple Explanation)
 
@@ -17,7 +17,7 @@ Human ears have different frequency sensitivities depending on volume. At quiet 
 
 ### Download Links
 
-- **Windows Installer**: [ApoLoudness_v0.3.3_Setup.exe](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.3/ApoLoudness_v0.3.3_Setup.exe)
+- **Windows Installer**: [ApoLoudness_v0.3.5_Setup.exe](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.5/ApoLoudness_v0.3.5_Setup.exe)
 - Includes automatic sample rate detection (44.1kHz/48.0kHz)
 
 ### ⚠️ Important Legal Notice
@@ -29,7 +29,7 @@ Human ears have different frequency sensitivities depending on volume. At quiet 
 ### Installation Steps
 
 #### Step 1: Install ApoLoudness
-1. Download and run `ApoLoudness_v0.3.3_Setup.exe`
+1. Download and run `ApoLoudness_v0.3.5_Setup.exe`
 2. The installer will detect your audio device's sample rate
 3. Confirm or change the sample rate (44.1kHz or 48.0kHz)
 4. Installation path: `C:\Program Files\EqualizerAPO\config\ApoLoudness\`
@@ -125,12 +125,11 @@ Process:
 
 #### When Mouse is Over Program Window:
 - **Mouse Wheel**: Adjust based on current mode
-  - Manual Mode: Offset adjustment (-20 to 0dB)
+  - Manual Mode: Offset adjustment (-30 to +30dB)
   - Auto Offset Mode: Real SPL based volume control
   - Calibration Mode: Target adjustment in 10dB steps
 - **Ctrl + Wheel**: Target Phon adjustment (1dB steps)
 - **Alt + Wheel**: Reference Phon adjustment (75-90dB range)
-- **Middle Click**: Reset Offset to 0
 - **Double Click**: Reset all to defaults (Target=60, Reference=80, Auto Offset ON)
 - **Right Click**: Open context menu
 
@@ -139,22 +138,26 @@ Process:
   - Works even when mouse is outside the program window
   - Perfect for quick volume adjustments while using other applications
 
-### Auto Offset Mode (Recommended)
+### 🌟 Auto Offset Mode (NEW in v0.3.5!)
 
-After calibration is complete, turning on Auto Offset lets you experience the true value of ApoLoudness.
+Enhanced Auto Offset now works with any reference level you choose!
 
-**Auto Offset Features**:
-- Real SPL based volume control
-- Automatic tonal balance optimization
-- Smart Target/Reference adjustment:
-  - Wheel up normally: Increases Target up to Reference
-  - Wheel up "a lot" (10+ times): Increases both Target and Reference by 1
-  - Wheel down: Decreases Target, and Reference follows when Target < 80
+**Key Features**:
+- **Custom Reference Support**: Choose any reference from 75-90 dB
+- **Smart Volume Control**: Real SPL based adjustment
+- **Intelligent Reference Management**:
+  - When Real SPL ≤ Your Reference: Maintains your chosen reference for tone balance improvement
+  - When Real SPL > Your Reference: Automatically adjusts reference upward to preserve natural sound
+
+**Examples**:
+- **Reference 75**: Enhanced tone balance for volumes up to 75 dB
+- **Reference 80**: Balanced approach for most content
+- **Reference 85**: Minimal processing for dynamic content
 
 **How to Use**:
-1. Right-click → Check "Auto Offset" OR use Right Mouse + Wheel anywhere
-2. Adjust volume with scroll wheel for Real SPL based control
-3. Double-click to reset to defaults
+1. Set your preferred Reference with Alt + Wheel (75-90)
+2. Right-click → Check "Auto Offset" OR use Right Mouse + Wheel anywhere
+3. Adjust volume with scroll wheel for intelligent Real SPL control
 
 ### Manual Mode (Advanced Users)
 
@@ -164,22 +167,30 @@ Use when you want fine manual adjustments with Auto Offset off.
 - **Scroll wheel**: Adjust Offset (traditional volume control)
 - **Ctrl + wheel**: Adjust Target (desired loudness level)
 - **Alt + wheel**: Adjust Reference (75-90dB range)
-- Real SPL cannot exceed Target (automatic limiting)
 
-## 🎛️ Interface Description
+## 🎨 New Compact Interface (v0.3.5)
 
-### Main Screen
+### Main Display
 ```
-Target: 60.0  Reference: 80.0  Offset: +1.0
-Preamp: -15.6 dB  Real: 60.3 dB SPL
+73.5 dB        (Real SPL in color-coded display)
+Safe: 24h+     (Safety listening time)
+T60 R80 O+2.0 P:-12  (Technical details)
 ```
+
+**Color Coding**:
+- 🟢 Green (≤65 dB): Very Safe
+- 🟡 Yellow (65-73 dB): Safe
+- 🟠 Light Red (73-80 dB): Caution
+- 🩷 Pink (80-85 dB): Warning
+- 🔴 Red (≥85 dB): Danger
 
 **Parameter Meanings**:
-- **Target**: Desired volume level (40-80dB)
-- **Reference**: Reference volume level (typically fixed at 80dB)
-- **Offset**: User fine-tuning value (-20dB to +10dB)
-- **Preamp**: Final gain applied to Equalizer APO
-- **Real**: Actual measured sound pressure level (based on calibration)
+- **Real SPL**: Actual sound pressure level at your ears
+- **Safe Time**: NIOSH-based safe listening duration
+- **T**: Target level
+- **R**: Reference level
+- **O**: Offset value
+- **P**: Final preamp
 
 ### Context Menu (Right-click)
 
@@ -197,19 +208,19 @@ A: Re-perform calibration or adjust Offset in Manual mode.
 **Q2: When sound is too quiet or loud**
 A:
 - Adjust with scroll wheel in Auto Offset mode
-- Adjust Offset value in Manual mode
-- Check amp or system volume
+- Check your Reference setting (Alt + Wheel)
+- Verify amp or system volume
 
 **Q3: When tonal balance seems off**
 A:
-- Ensure Target doesn't exceed Reference (Target ≤ Reference)
+- Try different Reference levels for your content
 - Re-check calibration measurements
 - Double-click to restore defaults and retry
 
 **Q4: When program doesn't work**
 A:
 - Check if Equalizer APO is properly installed
-- Verify "Include: Loudness.txt" setting
+- Verify "Include: ApoLoudness\ApoLoudness.txt" setting
 - Restart "AudioEndpointBuilder" in Windows services
 
 **Q5: Errors during calibration**
@@ -220,39 +231,36 @@ A:
 
 ## ⚡ Advanced Tips
 
-### Recommendations for Optimal Use
+### Recommendations by Content Type
 
-**Environment Setup**:
-- Perform calibration in quiet environment
-- Maintain consistent listening environment (chair position, headphone wearing, etc.)
-- High-quality headphones/speakers recommended
+**🎼 Classical/Jazz (Dynamic Range)**:
+- Reference: 75-78
+- Enhances subtle details at low volumes
+- Preserves dynamic expression
 
-**Improving Measurement Accuracy**:
-- Use average of multiple measurements during calibration
-- Fine-tune while actually using at various Target levels
-- Measure at consistent times as results may vary by time of day
+**🎸 Rock/Pop (Compressed)**:
+- Reference: 78-82
+- Balanced tone across volume range
+- Good for extended listening
 
-**Real-World Optimization**:
-- Actively use Auto Offset mode
-- Identify preferred Target levels by music genre
-- Avoid prolonged use above 80dB to protect hearing
+**🎬 Movies/Gaming**:
+- Reference: 82-85
+- Preserves impact and dynamics
+- Minimal processing for effects
 
-### Various Usage Scenarios
+**🎧 Late Night Listening**:
+- Reference: 75
+- Maximum tone compensation
+- Rich sound at whisper levels
 
-#### 💤 Night Listening (Quiet Environment)
-- Target: 40-50dB
-- Auto Offset: ON
-- Maintain rich tone without disturbing neighbors
+### Safety Guidelines
 
-#### 🎵 General Music Listening
-- Target: 60-70dB
-- Auto Offset: ON
-- Comfortable yet vivid music experience
-
-#### 🎬 Movies/Gaming
-- Target: 65-75dB
-- Fine-tune per content with Manual mode
-- Optimize balance between dialogue and effects
+Based on NIOSH recommendations with 80% safety margin:
+- **Below 65 dB**: Safe for 24+ hours
+- **65-73 dB**: Safe for extended periods
+- **73-80 dB**: Monitor listening time
+- **80-85 dB**: Limit exposure (8 hours max)
+- **Above 85 dB**: Significant hearing risk
 
 ## 📞 Support and Community
 
@@ -272,13 +280,21 @@ ApoLoudness is an innovative equal-loudness based volume control tool. It provid
 
 **Calibration is 90% of success**. Accurate measurement is the foundation of perfect tonal balance, so take your time and proceed carefully.
 
-Actively use Auto Offset mode to enjoy ApoLoudness's unique volume control experience. Once you experience it, you won't be able to go back to traditional volume control!
+Try the enhanced Auto Offset mode with different reference levels to find your perfect listening experience!
 
 **"Experience the magic of maintaining tonal balance regardless of volume changes!"** ✨
 
 ---
 
 ## Version History
+
+### v0.3.5 Changes (January 2025):
+
+* **Enhanced Auto Offset**: Now works with any reference level (75-90), not just 80
+* **Smart Reference Management**: Maintains user-selected reference until Real SPL exceeds it
+* **UI Improvements**: Removed middle-click function that caused sudden volume jumps
+* **Code Quality**: Complete refactoring for better maintainability
+* **Bug Fixes**: Improved Auto Offset behavior and calculation accuracy
 
 ### v0.3.3 Changes:
 

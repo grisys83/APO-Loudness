@@ -1,1 +1,27 @@
 IDI_ICON1               ICON    DISCARDABLE     "ApoLoudnessCalibration.ico"
+
+1 VERSIONINFO
+FILEVERSION 0,3,5,0
+PRODUCTVERSION 0,3,5,0
+FILEOS 0x4
+FILETYPE 0x1
+{
+  BLOCK "StringFileInfo"
+  {
+    BLOCK "040904B0"
+    {
+      VALUE "CompanyName", "grisys"
+      VALUE "FileDescription", "ApoLoudness Calibration Tool"
+      VALUE "FileVersion", "0.3.5.0"
+      VALUE "InternalName", "ApoLoudnessCalibration"
+      VALUE "LegalCopyright", "Copyright (C) 2025 grisys. Licensed under GPLv3"
+      VALUE "OriginalFilename", "ApoLoudnessCalibration.exe"
+      VALUE "ProductName", "ApoLoudness"
+      VALUE "ProductVersion", "0.3.5.0"
+    }
+  }
+  BLOCK "VarFileInfo"
+  {
+    VALUE "Translation", 0x0409, 0x04B0
+  }
+}

@@ -306,7 +306,7 @@ void MainWindow::toggleCalibrationMode() {
 }
 
 void MainWindow::showInfo() {
-    QString info = QString("ApoLoudness v0.3.3\n\n"
+    QString info = QString("ApoLoudness v0.3.5\n\n"
                            "🎵 VOLUME CONTROL GUIDE\n"
                            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                            "🖱️ When cursor is over window:\n"

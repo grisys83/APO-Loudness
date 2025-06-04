@@ -134,16 +134,21 @@ MainWindow::MainWindow(QWidget *parent)
     globalRightMousePressed(false)
 {
     setWindowTitle("ApoLoudness");
-    setFixedSize(400, 60); // 더 긴 텍스트를 위해 폭 증가
+    setFixedSize(120, 80); // 컴팩트한 크기로 변경
     setWindowFlags(Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
     setWindowIcon(QIcon(":/appicon.ico"));
+    
+    // 윈도우 배경 스타일 설정
+    setStyleSheet("QMainWindow { background-color: black; border-radius: 5px; }");
 
     label = new QLabel(this);
-    label->setGeometry(0, 0, 400, 60); // 창 크기에 맞춰 조정
-    label->setFont(QFont("Arial", 12));
-    label->setStyleSheet("QLabel { color: yellow; background-color: black; border-radius: 5px; }");
+    label->setGeometry(0, 0, 120, 80); // 창 크기에 맞춰 조정
+    label->setFont(QFont("Arial", 10)); // 기본 폰트 크기
+    label->setStyleSheet("QLabel { color: yellow; background-color: black; border-radius: 5px; padding: 5px; }");
     label->setAlignment(Qt::AlignCenter);
     label->setWordWrap(true); // 텍스트 줄바꿈 허용
+    // Label이 마우스 이벤트를 부모 윈도우로 전달하도록 설정
+    label->setAttribute(Qt::WA_TransparentForMouseEvents, true);
 
     targetLoudness = {75.0, 76.0, 77.0, 78.0, 79.0, 80.0, 81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0}; // Reference points (75-90 Phon)
 
@@ -269,25 +274,31 @@ void MainWindow::toggleCalibrationMode() {
 }
 
 void MainWindow::showInfo() {
-    QString info = QString("ApoLoudness v0.3.2\n\n"
-                           "Mouse Controls:\n"
-                           "When cursor is over window:\n"
-                           "- Wheel: %1\n"
-                           "- Ctrl + Wheel: Adjust Target Phon\n"
-                           "- Alt + Wheel: Adjust Reference Phon (75-90dB)\n"
-                           "- Middle Click: Reset Offset to 0\n"
-                           "- Double Click: Reset all to defaults\n"
-                           "- Right Click: Context menu\n\n"
-                           "Global (anywhere):\n"
-                           "- Right Click + Wheel: Auto enable Auto Offset & adjust volume\n\n"
-                           "Auto Offset Mode:\n"
-                           "- Real SPL based volume control\n"
-                           "- Wheel up many times (10+): Increase Target & Reference together\n"
-                           "- When Target < 80, wheel down decreases Reference too\n\n"
-                           "Current Settings:\n"
-                           "Target: %2 dB  Reference: %3 dB\n"
-                           "Offset: %4%5 dB  Auto Offset: %6\n"
-                           "Calibration Mode: %7")
+    QString info = QString("ApoLoudness v0.3.3\n\n"
+                           "🎵 VOLUME CONTROL GUIDE\n"
+                           "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           "🖱️ When cursor is over window:\n"
+                           "• Wheel: %1\n"
+                           "• Ctrl+Wheel: Fine-tune Target (tone balance)\n"
+                           "• Alt+Wheel: Change Reference (75-90dB)\n"
+                           "• Double Click: Reset all + Auto ON\n"
+                           "• Right Click: Context menu\n\n"
+                           "🌐 Anywhere on screen:\n"
+                           "• Right Click+Wheel: Auto-enable Auto Offset + volume\n\n"
+                           "📊 Auto Offset Mode (Recommended):\n"
+                           "• Real SPL based volume control\n"
+                           "• ≤80dB: Auto tone balance correction\n"
+                           "• >80dB: Preserves original tone balance\n\n"
+                           "🎨 Color Guide (Safety Levels):\n"
+                           "• Green (≤65dB): Very Safe\n"
+                           "• Yellow (65-73dB): Safe\n"
+                           "• Light Red (73-80dB): Caution\n"
+                           "• Pink (80-85dB): Warning\n"
+                           "• Red (≥85dB): Danger\n\n"
+                           "📋 Current Settings:\n"
+                           "Target: %2 dB, Reference: %3 dB\n"
+                           "Offset: %4%5 dB, Auto: %6\n"
+                           "Calibration: %7")
                        .arg(isCalibrationMode ? "Target (10dB steps)" : 
                             (isAutoOffset ? "Target with Auto Offset" : "Manual Offset"))
                        .arg(targetPhonValue, 0, 'f', 1)
@@ -302,6 +313,33 @@ void MainWindow::showInfo() {
 
 void MainWindow::exitApplication() {
     QApplication::quit();
+}
+
+QString MainWindow::calculateSafeListeningTime(double realDbSpl) {
+    // NIOSH 기준: 85dB에서 8시간, 3dB 증가마다 시간 절반
+    // 80% 안전 마진 적용 (권고시간의 80%)
+    
+    if (realDbSpl < 80.0) {
+        return "24h+";  // 80dB 미만은 24시간 이상 안전
+    }
+    
+    // NIOSH 공식: T = 8 / 2^((L-85)/3)
+    double hours = 8.0 / std::pow(2.0, (realDbSpl - 85.0) / 3.0);
+    
+    // 80% 안전 마진 적용
+    hours = hours * 0.8;
+    
+    if (hours >= 24.0) {
+        return "24h+";
+    } else if (hours >= 1.0) {
+        return QString::number(hours, 'f', 1) + "h";
+    } else if (hours >= 0.0167) { // 1분 이상
+        int minutes = static_cast<int>(hours * 60);
+        return QString::number(minutes) + "m";
+    } else {
+        int seconds = static_cast<int>(hours * 3600);
+        return QString::number(seconds) + "s";
+    }
 }
 
 double MainWindow::findClosestTargetToRealSPL(double currentRealSPL) {
@@ -387,27 +425,59 @@ void MainWindow::updateConfig() {
     finalPreampValue = std::max(-60.0, std::min(finalPreampValue, 0.0)); // final preamp은 0 이하로 제한
     finalPreampValue = qRound(finalPreampValue * 10) / 10.0;
 
-    // 첫 번째 줄: Target Phon, Reference Phon, Offset
-    QString offsetSign = (preampUserOffset >= 0) ? "+" : "";
-    QString firstLine = "Target: " + QString::number(targetPhonValue, 'f', 1) +
-                        "  Reference: " + QString::number(currentReferencePhon, 'f', 1) +
-                        "  Offset: " + offsetSign + QString::number(preampUserOffset, 'f', 1);
-    
-    // Calibration Mode 표시 추가
-    if (isCalibrationMode) {
-        firstLine += " [CAL]";
-    }
-
-    // 두 번째 줄: Preamp, Real dB SPL
-    double basePreamp = recommendedPreamp; // offset 없는 기본 preamp
-    double actualPreamp = finalPreampValue; // offset 포함 최종 preamp
+    // Real dB SPL 계산
+    double basePreamp = recommendedPreamp;
+    double actualPreamp = finalPreampValue;
     double realDbSpl = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, actualPreamp);
-
-    QString secondLine = "Preamp: " + QString::number(finalPreampValue, 'f', 1) +
-                         " dB  Real: " + QString::number(realDbSpl, 'f', 1) + " dB SPL";
-
-    // 두 줄을 하나의 label에 표시
-    label->setText(firstLine + "\n" + secondLine);
+    
+    // 안전 청취 시간 계산
+    QString safeTime = calculateSafeListeningTime(realDbSpl);
+    
+    // HTML 형식으로 텍스트 구성
+    QString text = "<html><body style='text-align: center;'>";
+    
+    // 색상 결정 - 더 세분화
+    QString color;
+    if (realDbSpl <= 65.0) {
+        color = "#00ff00";  // 형광 녹색
+    } else if (realDbSpl < 73.0) {
+        color = "#ffff66";  // 노란색
+    } else if (realDbSpl < 80.0) {
+        color = "#ff9999";  // 밝은 붉은색
+    } else if (realDbSpl < 85.0) {
+        color = "#ff66ff";  // 형광 분홍색
+    } else {
+        color = "#ff3333";  // 진한 빨간색
+    }
+    
+    // Real SPL을 큰 글씨로 (첫째 줄) - 창 크기에 맞게 폰트 크기 조정
+    text += QString("<div style='font-size: 20px; font-weight: bold; color: %1;'>%2 dB</div>")
+            .arg(color)
+            .arg(realDbSpl, 0, 'f', 1);
+    
+    // 안전 청취 시간 (둘째 줄) - 색상 동일하게 적용
+    text += QString("<div style='font-size: 12px; margin-top: 2px; color: %1;'>Safe: %2</div>")
+            .arg(color)
+            .arg(safeTime);
+    
+    // 기술적 세부사항을 더 작은 글씨로 (셋째 줄) - Preamp 추가
+    QString offsetSign = (preampUserOffset >= 0) ? "+" : "";
+    text += QString("<div style='font-size: 7px; color: #999999; margin-top: 2px;'>"
+                    "T%1 R%2 O%3%4 P:%5</div>")
+            .arg(targetPhonValue, 0, 'f', 0)
+            .arg(currentReferencePhon, 0, 'f', 0)
+            .arg(offsetSign)
+            .arg(preampUserOffset, 0, 'f', 1)
+            .arg(finalPreampValue, 0, 'f', 0);
+    
+    // Calibration Mode 표시
+    if (isCalibrationMode) {
+        text += "<div style='font-size: 8px; color: #ff9999;'>[CALIBRATION]</div>";
+    }
+    
+    text += "</body></html>";
+    
+    label->setText(text);
 
     QString wheelMode = "Manual Mode";
     if (isCalibrationMode) {
@@ -422,7 +492,6 @@ void MainWindow::updateConfig() {
                               "- Wheel: %1\n"
                               "- Ctrl+Wheel: Adjust Target Phon\n"
                               "- Alt+Wheel: Adjust Reference (75-90)\n"
-                              "- Middle Click: Reset Offset\n"
                               "- Double Click: Reset all to defaults\n"
                               "- Right Click: Context menu\n"
                               "- Right Click+Wheel: Enable Auto Offset")
@@ -463,12 +532,8 @@ void MainWindow::mousePressEvent(QMouseEvent *event) {
         leftMouseButtonPressed = true;
         // 창 드래그를 위한 시작점 저장 (FramelessWindowHint 사용 시)
         if (windowFlags() & Qt::FramelessWindowHint) {
-            dragPosition = event->globalPosition().toPoint() - frameGeometry().topLeft();
+            dragPosition = event->globalPosition().toPoint() - pos();
         }
-    } else if (event->button() == Qt::MiddleButton) {
-        // 중클릭: Preamp 오프셋 리셋
-        preampUserOffset = 0.0;
-        updateConfig();
         event->accept();
     }
 }

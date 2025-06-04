@@ -49,6 +49,7 @@ private:
     double getRecommendedPreamp(double targetPhon, double referencePhon);
     double calculateRealDbSpl(double targetPhon, double referencePhon, double basePreamp, double actualPreamp);
     double findClosestTargetToRealSPL(double currentRealSPL);
+    QString calculateSafeListeningTime(double realDbSpl);
     void handleGlobalWheel(int delta, bool ctrlPressed, bool altPressed, bool shiftPressed);
     void installGlobalHook();
     void uninstallGlobalHook();

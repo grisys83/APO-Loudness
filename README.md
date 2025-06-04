@@ -6,6 +6,11 @@
 
 ApoLoudness is a program that maintains optimal tonal balance even at low volumes. This allows you to enjoy rich bass and natural timbre while protecting your hearing.
 
+### ✨ New in v0.3.5
+- **Flexible Reference Levels**: Choose any reference from 75-90 dB for genre-specific optimization
+- **Smart Auto Mode**: Intelligent volume control that adapts to your listening style
+- **Safety First**: Real-time display of safe listening time based on NIOSH standards
+
 ## 🔬 How It Works (Simple Explanation)
 
 Human ears have different frequency sensitivities depending on volume. At quiet levels, bass and treble are relatively harder to hear. ApoLoudness precisely corrects this based on equal-loudness contours.

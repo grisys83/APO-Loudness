@@ -103,8 +103,8 @@ double OptimalOffsetCalculator::findOptimalOffset(double targetPhon, double base
     double bestOffset = 0.0;
     double minError = 999.0;
     
-    // -20dB에서 0dB까지 0.1dB 간격으로 탐색 (양수 offset 방지)
-    for (double offset = -20.0; offset <= 0.0; offset += 0.1) {
+    // -30dB에서 +30dB까지 0.1dB 간격으로 탐색
+    for (double offset = -30.0; offset <= 30.0; offset += 0.1) {
         double finalPreamp = basePreamp + offset;
         double realDbSpl = calculateRealDbSpl(targetPhon, basePreamp, finalPreamp);
         
@@ -246,7 +246,8 @@ void OptimalOffsetCalculator::runDemo() {
     for (double target : testTargets) {
         // 예시 base preamp 사용
         double basePreamp = -18.0;
-        double optimal = getOptimalOffset(target, basePreamp);
+        getOptimalOffset(target, basePreamp);
+        // double optimal = getOptimalOffset(target, basePreamp);
         // qDebug() << "Target" << target << "→ Optimal Offset:" << optimal;
     }
 }

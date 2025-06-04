@@ -384,7 +384,7 @@ void MainWindow::updateConfig() {
         finalPreampValue = recommendedPreamp + preampUserOffset;
     }
 
-    finalPreampValue = std::max(-40.0, std::min(finalPreampValue, 0.0)); // 안전 범위
+    finalPreampValue = std::max(-60.0, std::min(finalPreampValue, 0.0)); // final preamp은 0 이하로 제한
     finalPreampValue = qRound(finalPreampValue * 10) / 10.0;
 
     // 첫 번째 줄: Target Phon, Reference Phon, Offset
@@ -622,7 +622,7 @@ void MainWindow::readConfig() {
         double recommendedPreampForLoaded = getRecommendedPreamp(targetPhonValue, targetLoudness[loudnessIndex]);
         preampUserOffset = loadedPreampFromFile - recommendedPreampForLoaded;
         preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
-        preampUserOffset = std::max(-20.0, std::min(preampUserOffset, 10.0)); // 새로운 offset 범위
+        preampUserOffset = std::max(-30.0, std::min(preampUserOffset, 30.0)); // 확장된 offset 범위
         // qDebug() << "Config: Preamp " << loadedPreampFromFile << ", RecPreamp " << recommendedPreampForLoaded << ", UserOffset " << preampUserOffset;
     } else {
         // qDebug() << "Config: Invalid/missing preamp. Resetting user offset.";
@@ -702,62 +702,62 @@ void MainWindow::handleGlobalWheel(int delta, bool ctrlPressed, bool altPressed,
             }
             targetPhonValue = qRound(targetPhonValue / 10.0) * 10.0;  // 10 단위로 반올림
         } else if (isAutoOffset) {
-            // Auto Offset mode - Real SPL 기반 볼륨 조절
+            // Auto Offset mode - Real SPL 기반 단순화된 볼륨 조절
             double currentReferencePhon = targetLoudness[loudnessIndex];
             double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
+            double finalPreamp = basePreamp + preampUserOffset;
+            double currentRealSPL = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
             
+            // 목표 Real SPL 계산
+            double targetRealSPL = currentRealSPL;
             if (delta > 0) {
-                // 휠을 위로 돌림 - Real SPL 1dB 증가
-                autoOffsetWheelAccumulator++;
-                
-                // 휠을 "많이" 돌렸으면 (10번 이상) - Target이 Reference에 도달하지 않아도 동작
-                if (autoOffsetWheelAccumulator >= 10) {
-                    // Reference가 90 미만이면 Reference와 Target 모두 1 증가
-                    if (loudnessIndex < targetLoudness.size() - 1) {
-                        loudnessIndex++;
-                        targetPhonValue = targetPhonValue + 1.0;
-                        if (targetPhonValue > targetLoudness[loudnessIndex]) {
-                            targetPhonValue = targetLoudness[loudnessIndex];
-                        }
-                        autoOffsetWheelAccumulator = 0; // 리셋
-                        
-                        // 새로운 설정에 맞는 offset 계산
-                        basePreamp = getRecommendedPreamp(targetPhonValue, targetLoudness[loudnessIndex]);
-                        preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
-                    }
-                } else {
-                    // Target이 Reference보다 낮으면 Target만 증가
-                    if (targetPhonValue < currentReferencePhon) {
-                        targetPhonValue += 1.0;
-                        basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
-                        preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
-                    }
-                }
+                targetRealSPL = std::min(90.0, currentRealSPL + 1.0);
             } else if (delta < 0) {
-                // 휠을 아래로 돌림 - Real SPL 1dB 감소
-                autoOffsetWheelAccumulator = 0; // 아래로 돌리면 항상 리셋
-                
-                // Target이 80 미만이면 Reference도 함께 감소 (80까지)
-                if (targetPhonValue < 80.0 && loudnessIndex > 5) {
-                    loudnessIndex--;
-                    targetPhonValue = std::max(40.0, targetPhonValue - 1.0);
-                } 
-                // Target이 80 이상이면
-                else {
-                    // Reference가 80보다 크고 Target이 Reference와 같으면 함께 감소
-                    if (loudnessIndex > 5 && targetPhonValue >= currentReferencePhon) {
-                        loudnessIndex--;
-                        targetPhonValue = targetLoudness[loudnessIndex];
-                    } else {
-                        // 그 외의 경우 Target만 감소
-                        targetPhonValue = std::max(40.0, targetPhonValue - 1.0);
+                targetRealSPL = std::max(40.0, currentRealSPL - 1.0);
+            }
+            
+            // Real SPL 기반으로 Target 설정
+            targetPhonValue = targetRealSPL;
+            targetPhonValue = qRound(targetPhonValue * 10) / 10.0;
+            
+            // Reference 설정 규칙:
+            // - Real SPL <= 80: Reference = 80 (톤밸런스 개선)
+            // - Real SPL > 80: Reference = round(Real SPL) (톤밸런스 유지)
+            double idealReference;
+            if (targetRealSPL <= 80.0) {
+                idealReference = 80.0;
+            } else {
+                // 80 초과시 반올림된 값 사용 (81, 82, 83...)
+                idealReference = std::round(targetRealSPL);
+                idealReference = std::min(90.0, idealReference);
+            }
+            
+            // Reference 변경
+            if (std::abs(targetLoudness[loudnessIndex] - idealReference) > 0.01) {
+                for (int i = 0; i < targetLoudness.size(); i++) {
+                    if (std::abs(targetLoudness[i] - idealReference) < 0.01) {
+                        loudnessIndex = i;
+                        break;
                     }
                 }
-                
-                // 새로운 설정에 맞는 offset 계산
-                basePreamp = getRecommendedPreamp(targetPhonValue, targetLoudness[loudnessIndex]);
-                preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
             }
+            
+            // 새로운 Reference 가져오기
+            currentReferencePhon = targetLoudness[loudnessIndex];
+            
+            // Target = Real SPL이 되도록 offset 계산
+            basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
+            preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
+            preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
+            
+            // Final preamp이 0을 넘지 않도록 offset 제한
+            double finalPreampCheck = basePreamp + preampUserOffset;
+            if (finalPreampCheck > 0.0) {
+                preampUserOffset = 0.0 - basePreamp;
+                preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
+            }
+            
+            preampUserOffset = std::max(-30.0, std::min(preampUserOffset, 30.0));
         } else {
             // Manual Offset 조정
             double proposedOffset = preampUserOffset;
@@ -767,15 +767,19 @@ void MainWindow::handleGlobalWheel(int delta, bool ctrlPressed, bool altPressed,
                 proposedOffset -= preampScrollDelta;
             }
             proposedOffset = qRound(proposedOffset * 10) / 10.0;
-            proposedOffset = std::max(-20.0, std::min(proposedOffset, 10.0));
+            proposedOffset = std::max(-30.0, std::min(proposedOffset, 30.0));
             
             double currentReferencePhon = targetLoudness[loudnessIndex];
             double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
             double finalPreamp = basePreamp + proposedOffset;
-            double realSPL = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
             
-            if (realSPL <= targetPhonValue) {
+            // Final preamp이 0을 넘지 않는 경우에만 적용
+            if (finalPreamp <= 0.0) {
                 preampUserOffset = proposedOffset;
+            } else {
+                // Final preamp이 0이 되도록 offset 제한
+                preampUserOffset = 0.0 - basePreamp;
+                preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
             }
         }
     }

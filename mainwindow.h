@@ -53,6 +53,20 @@ private:
     void handleGlobalWheel(int delta, bool ctrlPressed, bool altPressed, bool shiftPressed);
     void installGlobalHook();
     void uninstallGlobalHook();
+    
+    // Refactored helper methods
+    void adjustTargetPhon(int delta);
+    void adjustReference(int delta);
+    void handleCalibrationWheel(int delta);
+    void handleAutoOffsetWheel(int delta);
+    void handleManualOffsetWheel(int delta);
+    double calculateNewRealSPL(double currentRealSPL, int delta);
+    void updateReferenceIfNeeded(double targetRealSPL);
+    void calculateAndApplyOptimalOffset();
+    void ensureFinalPreampLimit(double basePreamp);
+    QString getSPLColorCode(double realDbSpl);
+    QString formatMainDisplay(double realDbSpl, const QString& safeTime, const QString& color);
+    QString formatTechnicalDetails(double targetPhon, double referencePhon, double offset, double finalPreamp);
 
     // UI 컴포넌트
     QLabel *label;

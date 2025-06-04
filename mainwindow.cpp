@@ -114,7 +114,39 @@ const double DEFAULT_REFERENCE_PHON = 80.0;
 const double DEFAULT_TARGET_PHON = 60.0;
 const double FALLBACK_PREAMP = -23.0; // 맵에 값이 없을 경우 사용할 가장 안전한 값
 const double TARGET_PHON_MIN = 40.0;
-// const double TARGET_PHON_MAX = 90.0;  // Currently unused
+const double TARGET_PHON_MAX = 90.0;
+
+// UI 관련 상수
+const int WINDOW_WIDTH = 120;
+const int WINDOW_HEIGHT = 80;
+const int LABEL_FONT_SIZE = 10;
+const int MAIN_DISPLAY_FONT_SIZE = 20;
+const int SAFE_TIME_FONT_SIZE = 12;
+const int TECHNICAL_DETAILS_FONT_SIZE = 7;
+const int CALIBRATION_FONT_SIZE = 8;
+
+// 스크롤 관련 상수
+const double PHON_SCROLL_DELTA = 1.0;
+const double PREAMP_SCROLL_DELTA = 0.1;
+const double CALIBRATION_STEP = 10.0;
+
+// SPL 안전 레벨 임계값
+const double SPL_VERY_SAFE = 65.0;
+const double SPL_SAFE = 73.0;
+const double SPL_CAUTION = 80.0;
+const double SPL_WARNING = 85.0;
+
+// Preamp 제한값
+const double PREAMP_MIN = -60.0;
+const double PREAMP_MAX = 0.0;
+const double OFFSET_MIN = -30.0;
+const double OFFSET_MAX = 30.0;
+
+// NIOSH 안전 기준
+const double NIOSH_REFERENCE_DB = 85.0;
+const double NIOSH_REFERENCE_HOURS = 8.0;
+const double NIOSH_EXCHANGE_RATE = 3.0;
+const double SAFETY_MARGIN = 0.8;  // 80% 안전 마진
 
 #ifdef Q_OS_WIN
 HHOOK MainWindow::mouseHook = nullptr;
@@ -134,7 +166,7 @@ MainWindow::MainWindow(QWidget *parent)
     globalRightMousePressed(false)
 {
     setWindowTitle("ApoLoudness");
-    setFixedSize(120, 80); // 컴팩트한 크기로 변경
+    setFixedSize(WINDOW_WIDTH, WINDOW_HEIGHT);
     setWindowFlags(Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
     setWindowIcon(QIcon(":/appicon.ico"));
     
@@ -142,8 +174,8 @@ MainWindow::MainWindow(QWidget *parent)
     setStyleSheet("QMainWindow { background-color: black; border-radius: 5px; }");
 
     label = new QLabel(this);
-    label->setGeometry(0, 0, 120, 80); // 창 크기에 맞춰 조정
-    label->setFont(QFont("Arial", 10)); // 기본 폰트 크기
+    label->setGeometry(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    label->setFont(QFont("Arial", LABEL_FONT_SIZE));
     label->setStyleSheet("QLabel { color: yellow; background-color: black; border-radius: 5px; padding: 5px; }");
     label->setAlignment(Qt::AlignCenter);
     label->setWordWrap(true); // 텍스트 줄바꿈 허용
@@ -317,18 +349,19 @@ void MainWindow::exitApplication() {
 
 QString MainWindow::calculateSafeListeningTime(double realDbSpl) {
     // NIOSH 기준: 85dB에서 8시간, 3dB 증가마다 시간 절반
-    // 80% 안전 마진 적용 (권고시간의 80%)
+    // 80% 안전 마진 적용
     
-    if (realDbSpl < 80.0) {
+    if (realDbSpl < SPL_CAUTION) {
         return "24h+";  // 80dB 미만은 24시간 이상 안전
     }
     
     // NIOSH 공식: T = 8 / 2^((L-85)/3)
-    double hours = 8.0 / std::pow(2.0, (realDbSpl - 85.0) / 3.0);
+    double hours = NIOSH_REFERENCE_HOURS / std::pow(2.0, (realDbSpl - NIOSH_REFERENCE_DB) / NIOSH_EXCHANGE_RATE);
     
-    // 80% 안전 마진 적용
-    hours = hours * 0.8;
+    // 안전 마진 적용
+    hours = hours * SAFETY_MARGIN;
     
+    // 시간 포맷팅
     if (hours >= 24.0) {
         return "24h+";
     } else if (hours >= 1.0) {
@@ -408,75 +441,42 @@ double MainWindow::getRecommendedPreamp(double targetPhon, double referencePhon)
 void MainWindow::updateConfig() {
     double currentReferencePhon = targetLoudness[loudnessIndex];
 
+    // Target 값 범위 제한 및 반올림
     targetPhonValue = std::max(TARGET_PHON_MIN, std::min(targetPhonValue, currentReferencePhon));
     targetPhonValue = qRound(targetPhonValue * 10) / 10.0;
 
+    // Preamp 계산
     double recommendedPreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
     double finalPreampValue;
     
     // Calibration 모드에서는 offset 무시하고 map 값만 사용
     if (isCalibrationMode) {
-        finalPreampValue = recommendedPreamp;  // map 값 그대로 사용
-        preampUserOffset = 0.0;  // offset은 0으로 표시
+        finalPreampValue = recommendedPreamp;
+        preampUserOffset = 0.0;
     } else {
         finalPreampValue = recommendedPreamp + preampUserOffset;
     }
 
-    finalPreampValue = std::max(-60.0, std::min(finalPreampValue, 0.0)); // final preamp은 0 이하로 제한
+    finalPreampValue = std::max(PREAMP_MIN, std::min(finalPreampValue, PREAMP_MAX));
     finalPreampValue = qRound(finalPreampValue * 10) / 10.0;
 
     // Real dB SPL 계산
-    double basePreamp = recommendedPreamp;
-    double actualPreamp = finalPreampValue;
-    double realDbSpl = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, actualPreamp);
+    double realDbSpl = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, recommendedPreamp, finalPreampValue);
     
-    // 안전 청취 시간 계산
+    // UI 텍스트 생성
     QString safeTime = calculateSafeListeningTime(realDbSpl);
+    QString color = getSPLColorCode(realDbSpl);
     
-    // HTML 형식으로 텍스트 구성
-    QString text = "<html><body style='text-align: center;'>";
-    
-    // 색상 결정 - 더 세분화
-    QString color;
-    if (realDbSpl <= 65.0) {
-        color = "#00ff00";  // 형광 녹색
-    } else if (realDbSpl < 73.0) {
-        color = "#ffff66";  // 노란색
-    } else if (realDbSpl < 80.0) {
-        color = "#ff9999";  // 밝은 붉은색
-    } else if (realDbSpl < 85.0) {
-        color = "#ff66ff";  // 형광 분홍색
-    } else {
-        color = "#ff3333";  // 진한 빨간색
-    }
-    
-    // Real SPL을 큰 글씨로 (첫째 줄) - 창 크기에 맞게 폰트 크기 조정
-    text += QString("<div style='font-size: 20px; font-weight: bold; color: %1;'>%2 dB</div>")
-            .arg(color)
-            .arg(realDbSpl, 0, 'f', 1);
-    
-    // 안전 청취 시간 (둘째 줄) - 색상 동일하게 적용
-    text += QString("<div style='font-size: 12px; margin-top: 2px; color: %1;'>Safe: %2</div>")
-            .arg(color)
-            .arg(safeTime);
-    
-    // 기술적 세부사항을 더 작은 글씨로 (셋째 줄) - Preamp 추가
-    QString offsetSign = (preampUserOffset >= 0) ? "+" : "";
-    text += QString("<div style='font-size: 7px; color: #999999; margin-top: 2px;'>"
-                    "T%1 R%2 O%3%4 P:%5</div>")
-            .arg(targetPhonValue, 0, 'f', 0)
-            .arg(currentReferencePhon, 0, 'f', 0)
-            .arg(offsetSign)
-            .arg(preampUserOffset, 0, 'f', 1)
-            .arg(finalPreampValue, 0, 'f', 0);
+    QString text = formatMainDisplay(realDbSpl, safeTime, color);
+    text += formatTechnicalDetails(targetPhonValue, currentReferencePhon, preampUserOffset, finalPreampValue);
     
     // Calibration Mode 표시
     if (isCalibrationMode) {
-        text += "<div style='font-size: 8px; color: #ff9999;'>[CALIBRATION]</div>";
+        text += QString("<div style='font-size: %1px; color: #ff9999;'>[CALIBRATION]</div>")
+                .arg(CALIBRATION_FONT_SIZE);
     }
     
     text += "</body></html>";
-    
     label->setText(text);
 
     QString wheelMode = "Manual Mode";
@@ -709,140 +709,22 @@ void MainWindow::checkGlobalMouseState()
 
 void MainWindow::handleGlobalWheel(int delta, bool ctrlPressed, bool altPressed, bool shiftPressed)
 {
-    const double phonScrollDelta = 1;
-    const double preampScrollDelta = 0.1;
-    
-    // qDebug() << "GlobalWheel: delta=" << delta 
-    //          << "Ctrl=" << ctrlPressed 
-    //          << "Alt=" << altPressed 
-    //          << "Shift=" << shiftPressed;
-    
     // Ctrl + 휠: Target Phon 조정
     if (ctrlPressed && !altPressed && !shiftPressed) {
-        if (delta > 0) {
-            targetPhonValue += phonScrollDelta;
-        } else if (delta < 0) {
-            targetPhonValue -= phonScrollDelta;
-        }
-        double currentReferencePhon = targetLoudness[loudnessIndex];
-        targetPhonValue = std::min(targetPhonValue, currentReferencePhon);
+        adjustTargetPhon(delta);
     }
     // Alt + 휠: Reference Phon 변경
     else if (altPressed && !ctrlPressed && !shiftPressed) {
-        // int oldIndex = loudnessIndex;
-        // double oldReference = targetLoudness[loudnessIndex];
-        
-        if (delta > 0) {
-            if (loudnessIndex < targetLoudness.size() - 1) {
-                loudnessIndex++;
-            }
-        } else if (delta < 0) {
-            if (loudnessIndex > 0) {
-                loudnessIndex--;
-            }
-        }
-        
-        // qDebug() << "Alt+Wheel: oldIndex=" << oldIndex << "newIndex=" << loudnessIndex
-        //          << "oldRef=" << oldReference << "newRef=" << targetLoudness[loudnessIndex];
-        
-        targetPhonValue = std::min(targetPhonValue, targetLoudness[loudnessIndex]);
+        adjustReference(delta);
     }
     // 기본 휠: Offset 조정 또는 Auto Offset 모드
     else if (!ctrlPressed && !altPressed && !shiftPressed) {
         if (isCalibrationMode) {
-            // Calibration Mode - Target을 10dB 단위로 조정
-            double currentReferencePhon = targetLoudness[loudnessIndex];
-            if (delta > 0) {
-                // 위로: Target 증가 (Reference까지)
-                if (targetPhonValue < currentReferencePhon) {
-                    targetPhonValue += 10.0;
-                    targetPhonValue = std::min(targetPhonValue, currentReferencePhon);
-                }
-            } else {
-                // 아래로: Target 감소 (최소 40까지)
-                if (targetPhonValue > 40.0) {
-                    targetPhonValue -= 10.0;
-                    targetPhonValue = std::max(40.0, targetPhonValue);
-                }
-            }
-            targetPhonValue = qRound(targetPhonValue / 10.0) * 10.0;  // 10 단위로 반올림
+            handleCalibrationWheel(delta);
         } else if (isAutoOffset) {
-            // Auto Offset mode - Real SPL 기반 단순화된 볼륨 조절
-            double currentReferencePhon = targetLoudness[loudnessIndex];
-            double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
-            double finalPreamp = basePreamp + preampUserOffset;
-            double currentRealSPL = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
-            
-            // 목표 Real SPL 계산
-            double targetRealSPL = currentRealSPL;
-            if (delta > 0) {
-                targetRealSPL = std::min(90.0, currentRealSPL + 1.0);
-            } else if (delta < 0) {
-                targetRealSPL = std::max(40.0, currentRealSPL - 1.0);
-            }
-            
-            // Real SPL 기반으로 Target 설정
-            targetPhonValue = targetRealSPL;
-            targetPhonValue = qRound(targetPhonValue * 10) / 10.0;
-            
-            // Reference는 사용자가 설정한 값을 유지 (75-90)
-            // Real SPL > Reference인 경우, reference를 자동 상향 조정
-            if (targetRealSPL > currentReferencePhon) {
-                // Real SPL이 현재 reference보다 크면 reference를 올림
-                double idealReference = std::round(targetRealSPL);
-                idealReference = std::min(90.0, idealReference);
-                
-                // Reference 변경
-                if (std::abs(targetLoudness[loudnessIndex] - idealReference) > 0.01) {
-                    for (int i = 0; i < targetLoudness.size(); i++) {
-                        if (std::abs(targetLoudness[i] - idealReference) < 0.01) {
-                            loudnessIndex = i;
-                            break;
-                        }
-                    }
-                }
-                
-                // 새로운 Reference 가져오기
-                currentReferencePhon = targetLoudness[loudnessIndex];
-            }
-            // Real SPL <= Reference인 경우, 현재 reference 유지
-            
-            // Target = Real SPL이 되도록 offset 계산
-            basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
-            preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
-            preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
-            
-            // Final preamp이 0을 넘지 않도록 offset 제한
-            double finalPreampCheck = basePreamp + preampUserOffset;
-            if (finalPreampCheck > 0.0) {
-                preampUserOffset = 0.0 - basePreamp;
-                preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
-            }
-            
-            preampUserOffset = std::max(-30.0, std::min(preampUserOffset, 30.0));
+            handleAutoOffsetWheel(delta);
         } else {
-            // Manual Offset 조정
-            double proposedOffset = preampUserOffset;
-            if (delta > 0) {
-                proposedOffset += preampScrollDelta;
-            } else {
-                proposedOffset -= preampScrollDelta;
-            }
-            proposedOffset = qRound(proposedOffset * 10) / 10.0;
-            proposedOffset = std::max(-30.0, std::min(proposedOffset, 30.0));
-            
-            double currentReferencePhon = targetLoudness[loudnessIndex];
-            double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
-            double finalPreamp = basePreamp + proposedOffset;
-            
-            // Final preamp이 0을 넘지 않는 경우에만 적용
-            if (finalPreamp <= 0.0) {
-                preampUserOffset = proposedOffset;
-            } else {
-                // Final preamp이 0이 되도록 offset 제한
-                preampUserOffset = 0.0 - basePreamp;
-                preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
-            }
+            handleManualOffsetWheel(delta);
         }
     }
     
@@ -932,3 +814,185 @@ LRESULT CALLBACK MainWindow::MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
     return CallNextHookEx(mouseHook, nCode, wParam, lParam);
 }
 #endif
+
+// ==================== Refactored Helper Methods ====================
+
+QString MainWindow::getSPLColorCode(double realDbSpl) {
+    if (realDbSpl <= SPL_VERY_SAFE) {
+        return "#00ff00";  // 형광 녹색
+    } else if (realDbSpl < SPL_SAFE) {
+        return "#ffff66";  // 노란색
+    } else if (realDbSpl < SPL_CAUTION) {
+        return "#ff9999";  // 밝은 붉은색
+    } else if (realDbSpl < SPL_WARNING) {
+        return "#ff66ff";  // 형광 분홍색
+    } else {
+        return "#ff3333";  // 진한 빨간색
+    }
+}
+
+QString MainWindow::formatMainDisplay(double realDbSpl, const QString& safeTime, const QString& color) {
+    QString html = "<html><body style='text-align: center;'>";
+    
+    // Real SPL을 큰 글씨로 (첫째 줄)
+    html += QString("<div style='font-size: %1px; font-weight: bold; color: %2;'>%3 dB</div>")
+            .arg(MAIN_DISPLAY_FONT_SIZE)
+            .arg(color)
+            .arg(realDbSpl, 0, 'f', 1);
+    
+    // 안전 청취 시간 (둘째 줄)
+    html += QString("<div style='font-size: %1px; margin-top: 2px; color: %2;'>Safe: %3</div>")
+            .arg(SAFE_TIME_FONT_SIZE)
+            .arg(color)
+            .arg(safeTime);
+    
+    return html;
+}
+
+QString MainWindow::formatTechnicalDetails(double targetPhon, double referencePhon, double offset, double finalPreamp) {
+    QString offsetSign = (offset >= 0) ? "+" : "";
+    return QString("<div style='font-size: %1px; color: #999999; margin-top: 2px;'>"
+                   "T%2 R%3 O%4%5 P:%6</div>")
+            .arg(TECHNICAL_DETAILS_FONT_SIZE)
+            .arg(targetPhon, 0, 'f', 0)
+            .arg(referencePhon, 0, 'f', 0)
+            .arg(offsetSign)
+            .arg(offset, 0, 'f', 1)
+            .arg(finalPreamp, 0, 'f', 0);
+}
+
+void MainWindow::adjustTargetPhon(int delta) {
+    if (delta > 0) {
+        targetPhonValue += PHON_SCROLL_DELTA;
+    } else if (delta < 0) {
+        targetPhonValue -= PHON_SCROLL_DELTA;
+    }
+    double currentReferencePhon = targetLoudness[loudnessIndex];
+    targetPhonValue = std::min(targetPhonValue, currentReferencePhon);
+}
+
+void MainWindow::adjustReference(int delta) {
+    if (delta > 0 && loudnessIndex < targetLoudness.size() - 1) {
+        loudnessIndex++;
+    } else if (delta < 0 && loudnessIndex > 0) {
+        loudnessIndex--;
+    }
+    targetPhonValue = std::min(targetPhonValue, targetLoudness[loudnessIndex]);
+}
+
+void MainWindow::handleCalibrationWheel(int delta) {
+    double currentReferencePhon = targetLoudness[loudnessIndex];
+    if (delta > 0) {
+        // 위로: Target 증가 (Reference까지)
+        if (targetPhonValue < currentReferencePhon) {
+            targetPhonValue += CALIBRATION_STEP;
+            targetPhonValue = std::min(targetPhonValue, currentReferencePhon);
+        }
+    } else {
+        // 아래로: Target 감소 (최소 40까지)
+        if (targetPhonValue > TARGET_PHON_MIN) {
+            targetPhonValue -= CALIBRATION_STEP;
+            targetPhonValue = std::max(TARGET_PHON_MIN, targetPhonValue);
+        }
+    }
+    targetPhonValue = qRound(targetPhonValue / CALIBRATION_STEP) * CALIBRATION_STEP;  // 10 단위로 반올림
+}
+
+double MainWindow::calculateNewRealSPL(double currentRealSPL, int delta) {
+    if (delta > 0) {
+        return std::min(TARGET_PHON_MAX, currentRealSPL + 1.0);
+    } else if (delta < 0) {
+        return std::max(TARGET_PHON_MIN, currentRealSPL - 1.0);
+    }
+    return currentRealSPL;
+}
+
+void MainWindow::updateReferenceIfNeeded(double targetRealSPL) {
+    double currentReferencePhon = targetLoudness[loudnessIndex];
+    
+    // Real SPL > Reference인 경우, reference를 자동 상향 조정
+    if (targetRealSPL > currentReferencePhon) {
+        double idealReference = std::round(targetRealSPL);
+        idealReference = std::min(TARGET_PHON_MAX, idealReference);
+        
+        // Reference 변경
+        if (std::abs(targetLoudness[loudnessIndex] - idealReference) > 0.01) {
+            for (int i = 0; i < targetLoudness.size(); i++) {
+                if (std::abs(targetLoudness[i] - idealReference) < 0.01) {
+                    loudnessIndex = i;
+                    break;
+                }
+            }
+        }
+    }
+    // Real SPL <= Reference인 경우, 현재 reference 유지
+}
+
+void MainWindow::calculateAndApplyOptimalOffset() {
+    double currentReferencePhon = targetLoudness[loudnessIndex];
+    double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
+    
+    // Target = Real SPL이 되도록 offset 계산
+    preampUserOffset = optimalCalculator.getOptimalOffset(targetPhonValue, basePreamp);
+    preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
+    
+    // Final preamp이 0을 넘지 않도록 제한
+    ensureFinalPreampLimit(basePreamp);
+    
+    preampUserOffset = std::max(OFFSET_MIN, std::min(preampUserOffset, OFFSET_MAX));
+}
+
+void MainWindow::ensureFinalPreampLimit(double basePreamp) {
+    double finalPreampCheck = basePreamp + preampUserOffset;
+    if (finalPreampCheck > PREAMP_MAX) {
+        preampUserOffset = PREAMP_MAX - basePreamp;
+        preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
+    }
+}
+
+void MainWindow::handleAutoOffsetWheel(int delta) {
+    // 현재 Real SPL 계산
+    double currentReferencePhon = targetLoudness[loudnessIndex];
+    double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
+    double finalPreamp = basePreamp + preampUserOffset;
+    double currentRealSPL = optimalCalculator.calculateRealDbSpl(targetPhonValue, currentReferencePhon, basePreamp, finalPreamp);
+    
+    // 목표 Real SPL 계산
+    double targetRealSPL = calculateNewRealSPL(currentRealSPL, delta);
+    
+    // Real SPL 기반으로 Target 설정
+    targetPhonValue = targetRealSPL;
+    targetPhonValue = qRound(targetPhonValue * 10) / 10.0;
+    
+    // Reference 업데이트 (필요시)
+    updateReferenceIfNeeded(targetRealSPL);
+    
+    // 최적 offset 계산 및 적용
+    calculateAndApplyOptimalOffset();
+}
+
+void MainWindow::handleManualOffsetWheel(int delta) {
+    double proposedOffset = preampUserOffset;
+    
+    if (delta > 0) {
+        proposedOffset += PREAMP_SCROLL_DELTA;
+    } else {
+        proposedOffset -= PREAMP_SCROLL_DELTA;
+    }
+    
+    proposedOffset = qRound(proposedOffset * 10) / 10.0;
+    proposedOffset = std::max(OFFSET_MIN, std::min(proposedOffset, OFFSET_MAX));
+    
+    double currentReferencePhon = targetLoudness[loudnessIndex];
+    double basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
+    double finalPreamp = basePreamp + proposedOffset;
+    
+    // Final preamp이 0을 넘지 않는 경우에만 적용
+    if (finalPreamp <= PREAMP_MAX) {
+        preampUserOffset = proposedOffset;
+    } else {
+        // Final preamp이 0이 되도록 offset 제한
+        preampUserOffset = PREAMP_MAX - basePreamp;
+        preampUserOffset = qRound(preampUserOffset * 10) / 10.0;
+    }
+}

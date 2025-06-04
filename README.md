@@ -17,8 +17,14 @@ Human ears have different frequency sensitivities depending on volume. At quiet 
 
 ### Download Links
 
-- **Windows Installer**: [ApoLoudness_v0.3.5_Setup.exe](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.5/ApoLoudness_v0.3.5_Setup.exe)
-- Includes automatic sample rate detection (44.1kHz/48.0kHz)
+- **Windows Installer (Recommended)**: [ApoLoudness_v0.3.5_Setup.exe](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.5/ApoLoudness_v0.3.5_Setup.exe)
+  - Automatic Equalizer APO integration
+  - Smart sample rate detection (44.1kHz/48.0kHz)
+  - All dependencies included
+  
+- **Portable Version**: [ApoLoudness_v0.3.5_Portable.zip](https://github.com/grisys83/APO-Loudness/releases/download/v0.3.5/ApoLoudness_v0.3.5_Portable.zip)
+  - No installation required
+  - Manual configuration needed
 
 ### ⚠️ Important Legal Notice
 
@@ -290,11 +296,34 @@ Try the enhanced Auto Offset mode with different reference levels to find your p
 
 ### v0.3.5 Changes (January 2025):
 
-* **Enhanced Auto Offset**: Now works with any reference level (75-90), not just 80
-* **Smart Reference Management**: Maintains user-selected reference until Real SPL exceeds it
-* **UI Improvements**: Removed middle-click function that caused sudden volume jumps
-* **Code Quality**: Complete refactoring for better maintainability
-* **Bug Fixes**: Improved Auto Offset behavior and calculation accuracy
+#### 🌟 Major Features
+* **Enhanced Auto Offset**: Revolutionary update - now works with ANY reference level (75-90 dB)
+  - Custom reference selection via Alt+Wheel
+  - Intelligent reference management based on Real SPL
+  - Genre-optimized presets (Classical: 75, Rock: 80, Movies: 85)
+* **Smart Reference Logic**: 
+  - Real SPL ≤ Reference: Maintains chosen reference for tone correction
+  - Real SPL > Reference: Auto-adjusts to preserve natural dynamics
+
+#### 🎨 UI/UX Improvements
+* **Compact Display**: Redesigned 120x80 pixel window
+* **Safety Indicators**: 5-tier color coding (Green→Yellow→Red)
+* **NIOSH Standards**: Safe listening time display with 80% margin
+* **Removed Middle Click**: Eliminated sudden volume jump issue
+
+#### 🔧 Technical Improvements
+* **Complete Code Refactoring**:
+  - All magic numbers → Named constants
+  - Complex logic → Focused helper methods
+  - Improved error handling and edge cases
+* **Extended Range**: Offset now supports ±30 dB (was ±20 dB)
+* **Build System**: Added comprehensive build and deployment scripts
+* **Documentation**: Technical DSP explanation for developers
+
+#### 🐛 Bug Fixes
+* Fixed Auto Offset calculation accuracy
+* Improved reference switching behavior
+* Better handling of edge cases in SPL estimation
 
 ### v0.3.3 Changes:
 

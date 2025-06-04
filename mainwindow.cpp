@@ -785,30 +785,27 @@ void MainWindow::handleGlobalWheel(int delta, bool ctrlPressed, bool altPressed,
             targetPhonValue = targetRealSPL;
             targetPhonValue = qRound(targetPhonValue * 10) / 10.0;
             
-            // Reference 설정 규칙:
-            // - Real SPL <= 80: Reference = 80 (톤밸런스 개선)
-            // - Real SPL > 80: Reference = round(Real SPL) (톤밸런스 유지)
-            double idealReference;
-            if (targetRealSPL <= 80.0) {
-                idealReference = 80.0;
-            } else {
-                // 80 초과시 반올림된 값 사용 (81, 82, 83...)
-                idealReference = std::round(targetRealSPL);
+            // Reference는 사용자가 설정한 값을 유지 (75-90)
+            // Real SPL > Reference인 경우, reference를 자동 상향 조정
+            if (targetRealSPL > currentReferencePhon) {
+                // Real SPL이 현재 reference보다 크면 reference를 올림
+                double idealReference = std::round(targetRealSPL);
                 idealReference = std::min(90.0, idealReference);
-            }
-            
-            // Reference 변경
-            if (std::abs(targetLoudness[loudnessIndex] - idealReference) > 0.01) {
-                for (int i = 0; i < targetLoudness.size(); i++) {
-                    if (std::abs(targetLoudness[i] - idealReference) < 0.01) {
-                        loudnessIndex = i;
-                        break;
+                
+                // Reference 변경
+                if (std::abs(targetLoudness[loudnessIndex] - idealReference) > 0.01) {
+                    for (int i = 0; i < targetLoudness.size(); i++) {
+                        if (std::abs(targetLoudness[i] - idealReference) < 0.01) {
+                            loudnessIndex = i;
+                            break;
+                        }
                     }
                 }
+                
+                // 새로운 Reference 가져오기
+                currentReferencePhon = targetLoudness[loudnessIndex];
             }
-            
-            // 새로운 Reference 가져오기
-            currentReferencePhon = targetLoudness[loudnessIndex];
+            // Real SPL <= Reference인 경우, 현재 reference 유지
             
             // Target = Real SPL이 되도록 offset 계산
             basePreamp = getRecommendedPreamp(targetPhonValue, currentReferencePhon);
